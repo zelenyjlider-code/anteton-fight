@@ -2,149 +2,155 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Pocket World: Build Mode</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pocket World: Mobile & Mute</title>
     <style>
-        body { margin: 0; overflow: hidden; font-family: 'Consolas', monospace; background: #000; color: #00ffff; }
+        body { margin: 0; overflow: hidden; font-family: 'Consolas', monospace; background: #000; color: #00ffff; touch-action: none; }
         #menu {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: radial-gradient(circle, #1a1a1a, #000);
             display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100;
         }
-        .btn-list { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .btn-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
         .btn {
-            padding: 15px 30px; border: 2px solid #00ffff; background: transparent;
-            color: #00ffff; cursor: pointer; font-size: 16px; text-transform: uppercase; transition: 0.2s;
+            padding: 12px 20px; border: 2px solid #00ffff; background: transparent;
+            color: #00ffff; cursor: pointer; font-size: 14px; text-transform: uppercase;
         }
-        .btn:hover { background: #00ffff; color: black; box-shadow: 0 0 20px #00ffff; }
-        #network-panel { margin-top: 20px; padding: 15px; border: 1px dashed #555; text-align: center; }
-        input { background: #111; border: 1px solid #00ffff; color: #00ffff; padding: 10px; margin: 5px; outline: none; text-align: center; }
+        input { background: #111; border: 1px solid #00ffff; color: #00ffff; padding: 10px; margin: 5px; text-align: center; }
         
-        #chat-box {
-            position: absolute; bottom: 20px; left: 20px; width: 300px; height: 160px;
-            background: rgba(0, 0, 0, 0.6); border: 1px solid #00ffff;
-            display: flex; flex-direction: column; visibility: hidden; z-index: 60;
-        }
-        #chat-messages { flex: 1; overflow-y: auto; padding: 5px; font-size: 12px; color: #fff; }
-        #chat-input { background: #000; border: none; border-top: 1px solid #00ffff; color: #00ffff; padding: 10px; }
+        /* GUI & CHAT */
+        #gui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 10px; border: 1px solid #00ff00; visibility: hidden; z-index: 50; pointer-events: none; }
+        #chat-box { position: absolute; bottom: 80px; left: 10px; width: 200px; height: 120px; background: rgba(0,0,0,0.5); visibility: hidden; z-index: 60; display: flex; flex-direction: column; }
+        #chat-messages { flex: 1; overflow-y: auto; font-size: 10px; padding: 5px; }
+        #chat-input { width: 100%; box-sizing: border-box; font-size: 12px; pointer-events: auto; }
 
-        #gui {
-            position: absolute; top: 20px; left: 20px; 
-            background: rgba(0, 0, 0, 0.8); padding: 15px; border: 1px solid #00ff00;
-            pointer-events: none; visibility: hidden; z-index: 50;
-        }
+        /* MOBILE CONTROLS */
+        .touch-zone { position: absolute; bottom: 20px; left: 20px; width: 120px; height: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; z-index: 80; display: none; }
+        .touch-stick { position: absolute; top: 35px; left: 35px; width: 50px; height: 50px; background: #00ffff; border-radius: 50%; opacity: 0.5; }
+        #mobile-btns { position: absolute; bottom: 20px; right: 20px; display: none; grid-template-columns: 1fr 1fr; gap: 10px; z-index: 80; }
+        .m-btn { width: 50px; height: 50px; border-radius: 50%; background: rgba(0,255,255,0.2); border: 2px solid #00ffff; color: #fff; font-size: 10px; }
+        
+        #mute-toggle { position: absolute; top: 10px; right: 10px; padding: 10px; background: red; color: white; border: none; z-index: 90; visibility: hidden; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div id="menu">
-    <h1>POCKET WORLD 11.0</h1>
-    <input type="text" id="userName" placeholder="Nickname" style="margin-bottom: 10px; width: 200px;">
+    <h1>POCKET WORLD 12.0</h1>
+    <input type="text" id="userName" placeholder="Nickname">
     <div class="btn-list">
         <button class="btn" onclick="selectChar('ANTETON')">Anteton</button>
         <button class="btn" onclick="selectChar('CLASSIC')">Classic</button>
         <button class="btn" onclick="selectChar('GLITCH')">Glitch</button>
-        <button class="btn" onclick="selectChar('TV')">TV Anteton</button>
+        <button class="btn" onclick="selectChar('TV')">TV</button>
     </div>
-    <div id="selected-label">Selected: None</div>
-    <button class="btn" style="width:340px; border-color:#ff00ff; color:#ff00ff;" onclick="startSingle()">Singleplayer</button>
+    <div id="selected-label">Select Hero</div>
     <div id="network-panel">
         <input type="text" id="roomId" placeholder="Room Name">
-        <button class="btn" style="font-size: 11px; padding: 10px;" onclick="hostGame()">Host</button>
-        <button class="btn" style="font-size: 11px; padding: 10px;" onclick="joinGame()">Join</button>
+        <button class="btn" onclick="hostGame()">Host</button>
+        <button class="btn" onclick="joinGame()">Join</button>
     </div>
 </div>
 
+<button id="mute-toggle" onclick="toggleMute()">MUTE MIC</button>
+
 <div id="gui">
-    <div id="char-name">HERO: ---</div>
-    <hr>
-    <div><b>R: Place Block</b> (Except TV)</div>
-    <div>Enter: Chat | WASD: Move</div>
+    <div id="char-name">---</div>
+    <div id="status">Voice: Off</div>
 </div>
 
 <div id="chat-box">
     <div id="chat-messages"></div>
-    <input type="text" id="chat-input" placeholder="Press Enter to talk...">
+    <input type="text" id="chat-input">
+</div>
+
+<div id="joystick" class="touch-zone"><div id="stick" class="touch-stick"></div></div>
+<div id="mobile-btns">
+    <button class="m-btn" onclick="handleMobileBtn('Attack')">ATK</button>
+    <button class="m-btn" onclick="handleMobileBtn('Jump')">JMP</button>
+    <button class="m-btn" onclick="handleMobileBtn('Build')">BLD</button>
+    <button class="m-btn" onclick="handleMobileBtn('Skill_Q')">Q</button>
 </div>
 
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-<script type="importmap">
-    {
-        "imports": {
-            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-        }
-    }
-</script>
+<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }</script>
 
 <script type="module">
     import * as THREE from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-    const CHARS = {
-        ANTETON: { file: 'anteton.gltf', name: 'Anteton' },
-        CLASSIC: { file: 'classic.gltf', name: 'Classic' },
-        GLITCH: { file: 'glitch.gltf', name: 'Glitch' },
-        TV: { file: 'tv_anteton.gltf', name: 'TV Anteton' }
-    };
-
+    const CHARS = { ANTETON: 'anteton.gltf', CLASSIC: 'classic.gltf', GLITCH: 'glitch.gltf', TV: 'tv_anteton.gltf' };
     let scene, camera, renderer, clock = new THREE.Clock();
     let playerModel, mixer, actions = {}, currentActionName = "Idle";
-    let remotePlayer, remoteMixer, remoteActions = {}, remoteNameTag;
-    let selectedType = null, peer, conn, myName = "Player";
+    let remotePlayer, remoteMixer, remoteActions = {}, remoteTag;
+    let peer, conn, myStream, isMuted = false, myName = "Player", selectedType = null;
     let move = { f: false, b: false, l: false, r: false };
-    let velocityY = 0, isGrounded = true;
-    let cameraAzimuth = 0, cameraPolar = 0.8, isMouseDown = false;
+    let velocityY = 0, isGrounded = true, azimuth = 0, polar = 0.8;
+
+    // --- MOBILE SCRIPT ---
+    const isMobile = /Android|iPhone/i.test(navigator.userAgent);
+    if(isMobile) {
+        document.getElementById('joystick').style.display = 'block';
+        document.getElementById('mobile-btns').style.display = 'grid';
+    }
+
+    let joyData = { x: 0, y: 0, active: false };
+    document.getElementById('joystick').addEventListener('touchstart', e => joyData.active = true);
+    document.getElementById('joystick').addEventListener('touchmove', e => {
+        const touch = e.touches[0];
+        const rect = e.currentTarget.getBoundingClientRect();
+        const centerX = rect.left + rect.width/2;
+        const centerY = rect.top + rect.height/2;
+        joyData.x = (touch.clientX - centerX) / (rect.width/2);
+        joyData.y = (touch.clientY - centerY) / (rect.height/2);
+        const dist = Math.sqrt(joyData.x**2 + joyData.y**2);
+        if(dist > 1) { joyData.x /= dist; joyData.y /= dist; }
+        document.getElementById('stick').style.transform = `translate(${joyData.x*30}px, ${joyData.y*30}px)`;
+    });
+    document.getElementById('joystick').addEventListener('touchend', () => {
+        joyData = { x: 0, y: 0, active: false };
+        document.getElementById('stick').style.transform = `translate(0,0)`;
+    });
+
+    window.handleMobileBtn = (type) => {
+        if(type === 'Attack') playActionOnce('Attack');
+        if(type === 'Jump' && isGrounded) { velocityY = 0.25; isGrounded = false; playActionOnce('Jump'); }
+        if(type === 'Skill_Q') playActionOnce('Skill_Q');
+        if(type === 'Build') triggerBuild();
+    };
+
+    // --- VOICE CONTROL ---
+    window.toggleMute = () => {
+        if(!myStream) return;
+        isMuted = !isMuted;
+        myStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
+        const btn = document.getElementById('mute-toggle');
+        btn.innerText = isMuted ? "UNMUTE MIC" : "MUTE MIC";
+        btn.style.background = isMuted ? "green" : "red";
+    };
+
+    // --- CORE ---
+    window.selectChar = (t) => { selectedType = t; document.getElementById('selected-label').innerText = t; };
     
-    const blockGeo = new THREE.BoxGeometry(1, 1, 1);
-    const blockMat = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
-
-    window.selectChar = (t) => { selectedType = t; document.getElementById('selected-label').innerText = "Selected: " + CHARS[t].name; };
-    window.startSingle = () => { if(!selectedType) return alert("Select hero!"); initGame(); };
-
-    // --- NAME TAGS ---
-    function createNameTag(name) {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = 512; canvas.height = 128;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-        ctx.roundRect(0, 0, 512, 128, 20); ctx.fill();
-        ctx.font = 'bold 60px Arial'; ctx.textAlign = 'center'; ctx.fillStyle = '#00ffff';
-        ctx.fillText(name, 256, 85);
-        const tex = new THREE.CanvasTexture(canvas);
-        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex }));
-        sprite.scale.set(2, 0.5, 1);
-        return sprite;
-    }
-
-    // --- BUILDING ---
-    function placeBlock(pos, send = true) {
-        const block = new THREE.Mesh(blockGeo, blockMat);
-        // Выравнивание по сетке
-        block.position.set(Math.round(pos.x), Math.round(pos.y + 0.5), Math.round(pos.z));
-        scene.add(block);
-        if(send && conn) conn.send({ type: 'build', pos: block.position });
-    }
-
-    // --- NETWORK ---
-    function createPeer(id = null) {
-        return id ? new Peer(id) : new Peer();
-    }
-
-    window.hostGame = () => {
-        if(!selectedType) return alert("Select hero!");
-        myName = document.getElementById('userName').value || "Host";
-        peer = createPeer(document.getElementById('roomId').value);
-        peer.on('open', () => initGame());
+    async function startNet(isHost) {
+        if(!selectedType) return alert("Select Hero");
+        myName = document.getElementById('userName').value || "User";
+        try { myStream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch(e) {}
+        peer = isHost ? new Peer(document.getElementById('roomId').value) : new Peer();
+        peer.on('open', () => {
+            if(!isHost) {
+                conn = peer.connect(document.getElementById('roomId').value);
+                setupConn();
+                peer.call(document.getElementById('roomId').value, myStream).on('stream', s => playRemoteAudio(s));
+            }
+            initGame();
+        });
         peer.on('connection', c => { conn = c; setupConn(); });
-    };
+        peer.on('call', call => { call.answer(myStream); call.on('stream', s => playRemoteAudio(s)); });
+    }
 
-    window.joinGame = () => {
-        const id = document.getElementById('roomId').value;
-        if(!id || !selectedType) return alert("Room & Hero!");
-        myName = document.getElementById('userName').value || "Guest";
-        peer = createPeer();
-        peer.on('open', () => { conn = peer.connect(id); setupConn(); initGame(); });
-    };
+    window.hostGame = () => startNet(true);
+    window.joinGame = () => startNet(false);
 
     function setupConn() {
         conn.on('open', () => conn.send({ type: 'init', char: selectedType, name: myName }));
@@ -156,24 +162,29 @@
                 playRemoteAnim(data.anim);
             }
             if(data.type === 'action') playRemoteAnim(data.action, true);
-            if(data.type === 'chat') addChatMessage(data.msg, data.name);
-            if(data.type === 'build') placeBlock(data.pos, false);
+            if(data.type === 'build') placeBlock(data.pos);
         });
         conn.on('close', () => { scene.remove(remotePlayer); remotePlayer = null; });
     }
 
-    function addChatMessage(msg, user) {
-        const div = document.createElement('div');
-        div.innerHTML = `<b style="color:#00ffff">${user}:</b> ${msg}`;
-        document.getElementById('chat-messages').appendChild(div);
-        document.getElementById('chat-messages').scrollTop = 999;
+    function triggerBuild() {
+        if(selectedType === 'TV' || !playerModel) return;
+        const pos = playerModel.position.clone().add(new THREE.Vector3(0,0,-2).applyQuaternion(playerModel.quaternion));
+        placeBlock(pos);
+        if(conn) conn.send({ type: 'build', pos: pos });
     }
 
-    // --- ENGINE ---
+    function placeBlock(pos) {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshStandardMaterial({color:0x8B4513}));
+        b.position.set(Math.round(pos.x), Math.round(pos.y+0.5), Math.round(pos.z));
+        scene.add(b);
+    }
+
     function initGame() {
         document.getElementById('menu').style.display = 'none';
         document.getElementById('gui').style.visibility = 'visible';
         document.getElementById('chat-box').style.visibility = 'visible';
+        document.getElementById('mute-toggle').style.visibility = 'visible';
         
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87CEEB);
@@ -183,101 +194,79 @@
         document.body.appendChild(renderer.domElement);
 
         scene.add(new THREE.AmbientLight(0xffffff, 1));
-        const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-        sun.position.set(5, 10, 7); scene.add(sun);
+        const grass = new THREE.Mesh(new THREE.PlaneGeometry(1000,1000), new THREE.MeshStandardMaterial({color:0x228B22}));
+        grass.rotation.x = -Math.PI/2;
+        scene.add(grass);
 
-        const grass = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({color: 0x228B22}));
-        grass.rotation.x = -Math.PI/2; scene.add(grass);
-
-        loadLocalModel(CHARS[selectedType].file);
-        setupControls();
-        animate();
-    }
-
-    function loadLocalModel(file) {
-        new GLTFLoader().load(file, gltf => {
-            playerModel = gltf.scene;
-            scene.add(playerModel);
+        new GLTFLoader().load(CHARS[selectedType], gltf => {
+            playerModel = gltf.scene; scene.add(playerModel);
             mixer = new THREE.AnimationMixer(playerModel);
             gltf.animations.forEach(c => actions[c.name] = mixer.clipAction(c));
             if(actions['Idle']) actions['Idle'].play();
         });
+
+        setupControls();
+        animate();
     }
 
-    function spawnRemote(charType, name) {
-        new GLTFLoader().load(CHARS[charType].file, gltf => {
-            remotePlayer = gltf.scene;
-            scene.add(remotePlayer);
+    function spawnRemote(type, name) {
+        new GLTFLoader().load(CHARS[type], gltf => {
+            remotePlayer = gltf.scene; scene.add(remotePlayer);
             remoteMixer = new THREE.AnimationMixer(remotePlayer);
             gltf.animations.forEach(c => remoteActions[c.name] = remoteMixer.clipAction(c));
-            remoteNameTag = createNameTag(name);
-            scene.add(remoteNameTag);
-            addChatMessage("Joined the world!", name);
+            remoteTag = createTag(name);
+            scene.add(remoteTag);
         });
     }
 
-    function playAnim(name) {
-        if(!actions[name] || currentActionName === name) return;
+    function createTag(name) {
+        const can = document.createElement('canvas'); can.width = 256; can.height = 64;
+        const x = can.getContext('2d'); x.fillStyle = 'cyan'; x.font = '30px Arial'; x.fillText(name, 10, 40);
+        const spr = new THREE.Sprite(new THREE.SpriteMaterial({map: new THREE.CanvasTexture(can)}));
+        spr.scale.set(2, 0.5, 1); return spr;
+    }
+
+    function playRemoteAudio(s) { const a = new Audio(); a.srcObject = s; a.play(); }
+
+    function playAnim(n) {
+        if(!actions[n] || currentActionName === n) return;
         if(actions[currentActionName]) actions[currentActionName].fadeOut(0.2);
-        actions[name].reset().fadeIn(0.2).play();
-        currentActionName = name;
+        actions[n].reset().fadeIn(0.2).play();
+        currentActionName = n;
     }
 
-    function playActionOnce(name) {
-        if(!actions[name]) return;
-        const action = actions[name];
-        if(actions[currentActionName]) actions[currentActionName].stop();
-        action.reset().setLoop(THREE.LoopOnce).play();
-        const onFinish = (e) => { if(e.action === action) { mixer.removeEventListener('finished', onFinish); action.stop(); playAnim('Idle'); } };
-        mixer.addEventListener('finished', onFinish);
-        if(conn) conn.send({ type: 'action', action: name });
+    function playActionOnce(n) {
+        if(!actions[n]) return;
+        actions[currentActionName].stop();
+        actions[n].reset().setLoop(THREE.LoopOnce).play();
+        mixer.addEventListener('finished', function f(e) { 
+            if(e.action === actions[n]) { mixer.removeEventListener('finished', f); playAnim('Idle'); }
+        });
+        if(conn) conn.send({ type: 'action', action: n });
     }
 
-    function playRemoteAnim(name, once = false) {
-        if(!remoteActions[name]) return;
-        if(once) remoteActions[name].reset().setLoop(THREE.LoopOnce).play();
-        else {
-            if(remoteActions[name].isRunning()) return;
-            Object.values(remoteActions).forEach(a => a.stop());
-            remoteActions[name].reset().play();
-        }
+    function playRemoteAnim(n, once) {
+        if(!remoteActions[n]) return;
+        if(once) remoteActions[n].reset().setLoop(THREE.LoopOnce).play();
+        else { if(!remoteActions[n].isRunning()) { Object.values(remoteActions).forEach(a=>a.stop()); remoteActions[n].play(); } }
     }
 
     function setupControls() {
-        const chatInput = document.getElementById('chat-input');
         window.addEventListener('keydown', e => {
-            if(document.activeElement === chatInput) {
-                if(e.code === 'Enter') {
-                    if(chatInput.value && conn) { conn.send({ type: 'chat', msg: chatInput.value, name: myName }); addChatMessage(chatInput.value, myName); }
-                    chatInput.value = ''; chatInput.blur();
-                }
-                return;
-            }
-            if(e.code === 'Enter') chatInput.focus();
             if(e.code === 'KeyW') move.f = true; if(e.code === 'KeyS') move.b = true;
             if(e.code === 'KeyA') move.l = true; if(e.code === 'KeyD') move.r = true;
             if(e.code === 'Space' && isGrounded) { velocityY = 0.25; isGrounded = false; playActionOnce('Jump'); }
-            if(e.code === 'KeyQ') playActionOnce('Skill_Q');
-            if(e.code === 'KeyE') playActionOnce('Skill_E');
-            
-            // СТРОИТЕЛЬСТВО
-            if(e.code === 'KeyR' && selectedType !== 'TV' && playerModel) {
-                const buildPos = playerModel.position.clone();
-                const offset = new THREE.Vector3(0, 0, -2).applyQuaternion(playerModel.quaternion);
-                buildPos.add(offset);
-                placeBlock(buildPos);
-            }
+            if(e.code === 'KeyR') triggerBuild();
         });
         window.addEventListener('keyup', e => {
             if(e.code === 'KeyW') move.f = false; if(e.code === 'KeyS') move.b = false;
             if(e.code === 'KeyA') move.l = false; if(e.code === 'KeyD') move.r = false;
         });
-        window.addEventListener('mousedown', e => { if(e.button === 0) playActionOnce('Attack'); isMouseDown = true; });
-        window.addEventListener('mouseup', () => isMouseDown = false);
-        window.addEventListener('mousemove', e => {
-            if(isMouseDown) {
-                cameraAzimuth -= e.movementX * 0.01;
-                cameraPolar = Math.max(0.1, Math.min(Math.PI/2.1, cameraPolar + e.movementY * 0.01));
+        window.addEventListener('touchstart', () => isMouseDown = true);
+        window.addEventListener('touchend', () => isMouseDown = false);
+        window.addEventListener('touchmove', e => {
+            if(e.touches.length > 0 && !joyData.active) {
+                azimuth -= e.touches[0].radiusX * 0.05; // Упрощенный поворот для мобайла
             }
         });
     }
@@ -287,35 +276,30 @@
         const delta = clock.getDelta();
         if(mixer) mixer.update(delta);
         if(remoteMixer) remoteMixer.update(delta);
-        
+
         if(playerModel) {
-            const speed = 0.18;
-            if(move.f || move.b || move.l || move.r) {
+            const s = 0.15;
+            let fx = move.f ? -1 : (move.b ? 1 : 0);
+            let lx = move.l ? -1 : (move.r ? 1 : 0);
+            
+            if(joyData.active) { fx = joyData.y; lx = joyData.x; }
+
+            if(fx !== 0 || lx !== 0) {
                 playAnim('Walk');
-                if(move.f) { playerModel.position.x -= Math.sin(cameraAzimuth)*speed; playerModel.position.z -= Math.cos(cameraAzimuth)*speed; playerModel.rotation.y = cameraAzimuth + Math.PI; }
-                if(move.b) { playerModel.position.x += Math.sin(cameraAzimuth)*speed; playerModel.position.z += Math.cos(cameraAzimuth)*speed; playerModel.rotation.y = cameraAzimuth; }
-                if(move.l) { playerModel.position.x -= Math.cos(cameraAzimuth)*speed; playerModel.position.z += Math.sin(cameraAzimuth)*speed; playerModel.rotation.y = cameraAzimuth - Math.PI/2; }
-                if(move.r) { playerModel.position.x += Math.cos(cameraAzimuth)*speed; playerModel.position.z -= Math.sin(cameraAzimuth)*speed; playerModel.rotation.y = cameraAzimuth + Math.PI/2; }
-            } else if(isGrounded && !mixer.existingAction(actions['Skill_E'])?.isRunning() && !mixer.existingAction(actions['Attack'])?.isRunning()) {
-                playAnim('Idle');
-            }
+                playerModel.position.x += (Math.cos(azimuth)*lx - Math.sin(azimuth)*fx) * s;
+                playerModel.position.z += (Math.sin(azimuth)*lx + Math.cos(azimuth)*fx) * s;
+                playerModel.rotation.y = azimuth + Math.atan2(lx, fx) + Math.PI;
+            } else if(isGrounded) playAnim('Idle');
 
             playerModel.position.y += velocityY;
-            if(playerModel.position.y > 0) { velocityY -= 0.012; isGrounded = false; }
-            else { playerModel.position.y = 0; velocityY = 0; isGrounded = true; }
+            if(playerModel.position.y > 0) velocityY -= 0.01; else { playerModel.position.y = 0; isGrounded = true; }
 
-            camera.position.x = playerModel.position.x + 8 * Math.sin(cameraAzimuth) * Math.cos(cameraPolar);
-            camera.position.y = playerModel.position.y + 8 * Math.sin(cameraPolar) + 2;
-            camera.position.z = playerModel.position.z + 8 * Math.cos(cameraAzimuth) * Math.cos(cameraPolar);
-            camera.lookAt(playerModel.position.x, playerModel.position.y + 1.5, playerModel.position.z);
+            camera.position.set(playerModel.position.x + 7*Math.sin(azimuth), playerModel.position.y + 4, playerModel.position.z + 7*Math.cos(azimuth));
+            camera.lookAt(playerModel.position);
 
             if(conn) conn.send({ type: 'sync', x: playerModel.position.x, y: playerModel.position.y, z: playerModel.position.z, ry: playerModel.rotation.y, anim: currentActionName });
         }
-        
-        if(remotePlayer && remoteNameTag) {
-            remoteNameTag.position.set(remotePlayer.position.x, remotePlayer.position.y + 3, remotePlayer.position.z);
-        }
-
+        if(remotePlayer && remoteTag) remoteTag.position.set(remotePlayer.position.x, remotePlayer.position.y+3, remotePlayer.position.z);
         renderer.render(scene, camera);
     }
 </script>

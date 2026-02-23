@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pocket World: Mobile & Mute</title>
+    <title>Pocket World: Fixed & Mobile</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Consolas', monospace; background: #000; color: #00ffff; touch-action: none; }
         #menu {
@@ -16,27 +16,26 @@
             padding: 12px 20px; border: 2px solid #00ffff; background: transparent;
             color: #00ffff; cursor: pointer; font-size: 14px; text-transform: uppercase;
         }
-        input { background: #111; border: 1px solid #00ffff; color: #00ffff; padding: 10px; margin: 5px; text-align: center; }
+        input { background: #111; border: 1px solid #00ffff; color: #00ffff; padding: 10px; margin: 5px; text-align: center; outline: none; }
         
-        /* GUI & CHAT */
         #gui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 10px; border: 1px solid #00ff00; visibility: hidden; z-index: 50; pointer-events: none; }
-        #chat-box { position: absolute; bottom: 80px; left: 10px; width: 200px; height: 120px; background: rgba(0,0,0,0.5); visibility: hidden; z-index: 60; display: flex; flex-direction: column; }
-        #chat-messages { flex: 1; overflow-y: auto; font-size: 10px; padding: 5px; }
-        #chat-input { width: 100%; box-sizing: border-box; font-size: 12px; pointer-events: auto; }
+        #chat-box { position: absolute; bottom: 150px; left: 10px; width: 250px; height: 120px; background: rgba(0,0,0,0.5); visibility: hidden; z-index: 60; display: flex; flex-direction: column; border: 1px solid #555; }
+        #chat-messages { flex: 1; overflow-y: auto; font-size: 12px; padding: 5px; color: #fff; }
+        #chat-input { width: 100%; box-sizing: border-box; background: #000; color: #00ffff; border: none; border-top: 1px solid #00ffff; pointer-events: auto; }
 
-        /* MOBILE CONTROLS */
-        .touch-zone { position: absolute; bottom: 20px; left: 20px; width: 120px; height: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; z-index: 80; display: none; }
-        .touch-stick { position: absolute; top: 35px; left: 35px; width: 50px; height: 50px; background: #00ffff; border-radius: 50%; opacity: 0.5; }
-        #mobile-btns { position: absolute; bottom: 20px; right: 20px; display: none; grid-template-columns: 1fr 1fr; gap: 10px; z-index: 80; }
-        .m-btn { width: 50px; height: 50px; border-radius: 50%; background: rgba(0,255,255,0.2); border: 2px solid #00ffff; color: #fff; font-size: 10px; }
+        /* MOBILE UI */
+        #joystick { position: absolute; bottom: 40px; left: 40px; width: 100px; height: 100px; background: rgba(255,255,255,0.1); border: 2px solid #00ffff; border-radius: 50%; z-index: 80; display: none; }
+        #stick { position: absolute; top: 25px; left: 25px; width: 50px; height: 50px; background: #00ffff; border-radius: 50%; opacity: 0.6; pointer-events: none; }
+        #mobile-btns { position: absolute; bottom: 30px; right: 30px; display: none; grid-template-columns: 1fr 1fr; gap: 15px; z-index: 80; }
+        .m-btn { width: 60px; height: 60px; border-radius: 50%; background: rgba(0,255,255,0.2); border: 2px solid #00ffff; color: #fff; font-weight: bold; font-size: 12px; outline: none; }
         
-        #mute-toggle { position: absolute; top: 10px; right: 10px; padding: 10px; background: red; color: white; border: none; z-index: 90; visibility: hidden; cursor: pointer; }
+        #mute-toggle { position: absolute; top: 10px; right: 10px; padding: 10px; background: #ff4444; color: white; border: 1px solid white; z-index: 90; visibility: hidden; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div id="menu">
-    <h1>POCKET WORLD 12.0</h1>
+    <h1>POCKET WORLD v12.1</h1>
     <input type="text" id="userName" placeholder="Nickname">
     <div class="btn-list">
         <button class="btn" onclick="selectChar('ANTETON')">Anteton</button>
@@ -44,11 +43,14 @@
         <button class="btn" onclick="selectChar('GLITCH')">Glitch</button>
         <button class="btn" onclick="selectChar('TV')">TV</button>
     </div>
-    <div id="selected-label">Select Hero</div>
+    <div id="selected-label" style="margin-bottom: 10px;">Select Hero</div>
+    <button class="btn" style="width:340px; border-color:#ff00ff; color:#ff00ff;" onclick="window.startSingle()">Singleplayer</button>
     <div id="network-panel">
         <input type="text" id="roomId" placeholder="Room Name">
-        <button class="btn" onclick="hostGame()">Host</button>
-        <button class="btn" onclick="joinGame()">Join</button>
+        <div style="display: flex; gap: 5px; justify-content: center; margin-top: 5px;">
+            <button class="btn" onclick="hostGame()">Host</button>
+            <button class="btn" onclick="joinGame()">Join</button>
+        </div>
     </div>
 </div>
 
@@ -61,15 +63,15 @@
 
 <div id="chat-box">
     <div id="chat-messages"></div>
-    <input type="text" id="chat-input">
+    <input type="text" id="chat-input" placeholder="Enter to chat">
 </div>
 
-<div id="joystick" class="touch-zone"><div id="stick" class="touch-stick"></div></div>
+<div id="joystick"><div id="stick"></div></div>
 <div id="mobile-btns">
-    <button class="m-btn" onclick="handleMobileBtn('Attack')">ATK</button>
-    <button class="m-btn" onclick="handleMobileBtn('Jump')">JMP</button>
-    <button class="m-btn" onclick="handleMobileBtn('Build')">BLD</button>
-    <button class="m-btn" onclick="handleMobileBtn('Skill_Q')">Q</button>
+    <button class="m-btn" ontouchstart="handleMobileBtn('Attack')">ATK</button>
+    <button class="m-btn" ontouchstart="handleMobileBtn('Jump')">JMP</button>
+    <button class="m-btn" ontouchstart="handleMobileBtn('Build')">BLD</button>
+    <button class="m-btn" ontouchstart="handleMobileBtn('Skill_Q')">Q</button>
 </div>
 
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -85,31 +87,35 @@
     let remotePlayer, remoteMixer, remoteActions = {}, remoteTag;
     let peer, conn, myStream, isMuted = false, myName = "Player", selectedType = null;
     let move = { f: false, b: false, l: false, r: false };
-    let velocityY = 0, isGrounded = true, azimuth = 0, polar = 0.8;
+    let velocityY = 0, isGrounded = true, azimuth = 0, polar = 0.8, isMouseDown = false;
 
-    // --- MOBILE SCRIPT ---
-    const isMobile = /Android|iPhone/i.test(navigator.userAgent);
+    // --- MOBILE UI DETECT ---
+    const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
     if(isMobile) {
         document.getElementById('joystick').style.display = 'block';
         document.getElementById('mobile-btns').style.display = 'grid';
     }
 
+    // --- JOYSICK LOGIC ---
     let joyData = { x: 0, y: 0, active: false };
-    document.getElementById('joystick').addEventListener('touchstart', e => joyData.active = true);
-    document.getElementById('joystick').addEventListener('touchmove', e => {
-        const touch = e.touches[0];
-        const rect = e.currentTarget.getBoundingClientRect();
-        const centerX = rect.left + rect.width/2;
-        const centerY = rect.top + rect.height/2;
-        joyData.x = (touch.clientX - centerX) / (rect.width/2);
-        joyData.y = (touch.clientY - centerY) / (rect.height/2);
-        const dist = Math.sqrt(joyData.x**2 + joyData.y**2);
-        if(dist > 1) { joyData.x /= dist; joyData.y /= dist; }
-        document.getElementById('stick').style.transform = `translate(${joyData.x*30}px, ${joyData.y*30}px)`;
+    const joyEl = document.getElementById('joystick');
+    const stickEl = document.getElementById('stick');
+
+    joyEl.addEventListener('touchstart', e => { joyData.active = true; });
+    joyEl.addEventListener('touchmove', e => {
+        const t = e.touches[0];
+        const r = joyEl.getBoundingClientRect();
+        const cx = r.left + r.width/2;
+        const cy = r.top + r.height/2;
+        joyData.x = (t.clientX - cx) / (r.width/2);
+        joyData.y = (t.clientY - cy) / (r.height/2);
+        const d = Math.sqrt(joyData.x**2 + joyData.y**2);
+        if(d > 1) { joyData.x /= d; joyData.y /= d; }
+        stickEl.style.transform = `translate(${joyData.x*25}px, ${joyData.y*25}px)`;
     });
-    document.getElementById('joystick').addEventListener('touchend', () => {
+    joyEl.addEventListener('touchend', () => {
         joyData = { x: 0, y: 0, active: false };
-        document.getElementById('stick').style.transform = `translate(0,0)`;
+        stickEl.style.transform = `translate(0,0)`;
     });
 
     window.handleMobileBtn = (type) => {
@@ -119,25 +125,24 @@
         if(type === 'Build') triggerBuild();
     };
 
-    // --- VOICE CONTROL ---
+    // --- UTILS ---
+    window.selectChar = (t) => { selectedType = t; document.getElementById('selected-label').innerText = "Hero: " + t; };
+    window.startSingle = () => { if(!selectedType) return alert("Select Hero!"); initGame(); };
     window.toggleMute = () => {
         if(!myStream) return;
         isMuted = !isMuted;
-        myStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
-        const btn = document.getElementById('mute-toggle');
-        btn.innerText = isMuted ? "UNMUTE MIC" : "MUTE MIC";
-        btn.style.background = isMuted ? "green" : "red";
+        myStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
+        document.getElementById('mute-toggle').style.background = isMuted ? "green" : "#ff4444";
+        document.getElementById('mute-toggle').innerText = isMuted ? "UNMUTE MIC" : "MUTE MIC";
     };
 
-    // --- CORE ---
-    window.selectChar = (t) => { selectedType = t; document.getElementById('selected-label').innerText = t; };
-    
+    // --- NETWORK ---
     async function startNet(isHost) {
         if(!selectedType) return alert("Select Hero");
-        myName = document.getElementById('userName').value || "User";
+        myName = document.getElementById('userName').value || "Player";
         try { myStream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch(e) {}
         peer = isHost ? new Peer(document.getElementById('roomId').value) : new Peer();
-        peer.on('open', () => {
+        peer.on('open', (id) => {
             if(!isHost) {
                 conn = peer.connect(document.getElementById('roomId').value);
                 setupConn();
@@ -148,7 +153,6 @@
         peer.on('connection', c => { conn = c; setupConn(); });
         peer.on('call', call => { call.answer(myStream); call.on('stream', s => playRemoteAudio(s)); });
     }
-
     window.hostGame = () => startNet(true);
     window.joinGame = () => startNet(false);
 
@@ -167,19 +171,7 @@
         conn.on('close', () => { scene.remove(remotePlayer); remotePlayer = null; });
     }
 
-    function triggerBuild() {
-        if(selectedType === 'TV' || !playerModel) return;
-        const pos = playerModel.position.clone().add(new THREE.Vector3(0,0,-2).applyQuaternion(playerModel.quaternion));
-        placeBlock(pos);
-        if(conn) conn.send({ type: 'build', pos: pos });
-    }
-
-    function placeBlock(pos) {
-        const b = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshStandardMaterial({color:0x8B4513}));
-        b.position.set(Math.round(pos.x), Math.round(pos.y+0.5), Math.round(pos.z));
-        scene.add(b);
-    }
-
+    // --- GAME LOGIC ---
     function initGame() {
         document.getElementById('menu').style.display = 'none';
         document.getElementById('gui').style.visibility = 'visible';
@@ -207,6 +199,58 @@
 
         setupControls();
         animate();
+    }
+
+    function triggerBuild() {
+        if(selectedType === 'TV' || !playerModel) return;
+        const pos = playerModel.position.clone().add(new THREE.Vector3(0,0,-2).applyQuaternion(playerModel.quaternion));
+        placeBlock(pos);
+        if(conn) conn.send({ type: 'build', pos: pos });
+    }
+
+    function placeBlock(pos) {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshStandardMaterial({color:0x8B4513}));
+        b.position.set(Math.round(pos.x), Math.round(pos.y+0.5), Math.round(pos.z));
+        scene.add(b);
+    }
+
+    function setupControls() {
+        window.addEventListener('keydown', e => {
+            if(e.code === 'KeyW') move.f = true; if(e.code === 'KeyS') move.b = true;
+            if(e.code === 'KeyA') move.l = true; if(e.code === 'KeyD') move.r = true;
+            if(e.code === 'Space' && isGrounded) { velocityY = 0.25; isGrounded = false; playActionOnce('Jump'); }
+            if(e.code === 'KeyR') triggerBuild();
+        });
+        window.addEventListener('keyup', e => {
+            if(e.code === 'KeyW') move.f = false; if(e.code === 'KeyS') move.b = false;
+            if(e.code === 'KeyA') move.l = false; if(e.code === 'KeyD') move.r = false;
+        });
+
+        // Mouse Camera & Click
+        window.addEventListener('mousedown', e => { 
+            if(e.button === 0) {
+                if(!isMobile) playActionOnce('Attack');
+                isMouseDown = true; 
+            }
+        });
+        window.addEventListener('mouseup', () => isMouseDown = false);
+        window.addEventListener('mousemove', e => {
+            if(isMouseDown) {
+                azimuth -= e.movementX * 0.005;
+                polar = Math.max(0.2, Math.min(1.4, polar + e.movementY * 0.005));
+            }
+        });
+        
+        // Touch Camera
+        window.addEventListener('touchmove', e => {
+            if(e.touches.length > 0 && !joyData.active) {
+                const touch = e.touches[0];
+                // Простое вращение при свайпе в пустом месте
+                if(touch.clientX > window.innerWidth / 2) {
+                    azimuth -= 0.05;
+                }
+            }
+        }, {passive: false});
     }
 
     function spawnRemote(type, name) {
@@ -237,11 +281,10 @@
 
     function playActionOnce(n) {
         if(!actions[n]) return;
-        actions[currentActionName].stop();
+        if(actions[currentActionName]) actions[currentActionName].stop();
         actions[n].reset().setLoop(THREE.LoopOnce).play();
-        mixer.addEventListener('finished', function f(e) { 
-            if(e.action === actions[n]) { mixer.removeEventListener('finished', f); playAnim('Idle'); }
-        });
+        const finish = (e) => { if(e.action === actions[n]) { mixer.removeEventListener('finished', finish); playAnim('Idle'); } };
+        mixer.addEventListener('finished', finish);
         if(conn) conn.send({ type: 'action', action: n });
     }
 
@@ -249,26 +292,6 @@
         if(!remoteActions[n]) return;
         if(once) remoteActions[n].reset().setLoop(THREE.LoopOnce).play();
         else { if(!remoteActions[n].isRunning()) { Object.values(remoteActions).forEach(a=>a.stop()); remoteActions[n].play(); } }
-    }
-
-    function setupControls() {
-        window.addEventListener('keydown', e => {
-            if(e.code === 'KeyW') move.f = true; if(e.code === 'KeyS') move.b = true;
-            if(e.code === 'KeyA') move.l = true; if(e.code === 'KeyD') move.r = true;
-            if(e.code === 'Space' && isGrounded) { velocityY = 0.25; isGrounded = false; playActionOnce('Jump'); }
-            if(e.code === 'KeyR') triggerBuild();
-        });
-        window.addEventListener('keyup', e => {
-            if(e.code === 'KeyW') move.f = false; if(e.code === 'KeyS') move.b = false;
-            if(e.code === 'KeyA') move.l = false; if(e.code === 'KeyD') move.r = false;
-        });
-        window.addEventListener('touchstart', () => isMouseDown = true);
-        window.addEventListener('touchend', () => isMouseDown = false);
-        window.addEventListener('touchmove', e => {
-            if(e.touches.length > 0 && !joyData.active) {
-                azimuth -= e.touches[0].radiusX * 0.05; // Упрощенный поворот для мобайла
-            }
-        });
     }
 
     function animate() {
@@ -281,7 +304,6 @@
             const s = 0.15;
             let fx = move.f ? -1 : (move.b ? 1 : 0);
             let lx = move.l ? -1 : (move.r ? 1 : 0);
-            
             if(joyData.active) { fx = joyData.y; lx = joyData.x; }
 
             if(fx !== 0 || lx !== 0) {
@@ -289,13 +311,15 @@
                 playerModel.position.x += (Math.cos(azimuth)*lx - Math.sin(azimuth)*fx) * s;
                 playerModel.position.z += (Math.sin(azimuth)*lx + Math.cos(azimuth)*fx) * s;
                 playerModel.rotation.y = azimuth + Math.atan2(lx, fx) + Math.PI;
-            } else if(isGrounded) playAnim('Idle');
+            } else if(isGrounded && !mixer.existingAction(actions['Attack'])?.isRunning()) {
+                playAnim('Idle');
+            }
 
             playerModel.position.y += velocityY;
-            if(playerModel.position.y > 0) velocityY -= 0.01; else { playerModel.position.y = 0; isGrounded = true; }
+            if(playerModel.position.y > 0) velocityY -= 0.01; else { playerModel.position.y = 0; velocityY = 0; isGrounded = true; }
 
-            camera.position.set(playerModel.position.x + 7*Math.sin(azimuth), playerModel.position.y + 4, playerModel.position.z + 7*Math.cos(azimuth));
-            camera.lookAt(playerModel.position);
+            camera.position.set(playerModel.position.x + 8*Math.sin(azimuth)*Math.sin(polar), playerModel.position.y + 8*Math.cos(polar), playerModel.position.z + 8*Math.cos(azimuth)*Math.sin(polar));
+            camera.lookAt(playerModel.position.x, playerModel.position.y + 1, playerModel.position.z);
 
             if(conn) conn.send({ type: 'sync', x: playerModel.position.x, y: playerModel.position.y, z: playerModel.position.z, ry: playerModel.rotation.y, anim: currentActionName });
         }

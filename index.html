@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>The Game: Pocket World Fighting</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Consolas', monospace; background: #000; }
         
-        /* Меню выбора */
+        /* Character Selection Menu */
         #menu {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: radial-gradient(circle, #1a1a1a, #000);
@@ -20,14 +20,14 @@
         }
         .btn:hover { background: #00ffff; color: black; box-shadow: 0 0 30px #00ffff; }
 
-        /* Интерфейс игры */
+        /* Game UI */
         #gui {
             position: absolute; top: 20px; left: 20px; color: #00ff00;
             background: rgba(0, 30, 0, 0.8); padding: 15px; border: 1px solid #00ff00;
             pointer-events: none; visibility: hidden; z-index: 50;
         }
 
-        /* Оверлей паузы */
+        /* Pause Overlay */
         #pause-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 255, 255, 0.1); display: none;
@@ -35,30 +35,30 @@
             justify-content: center; align-items: center; z-index: 80;
             pointer-events: none;
         }
-        .glitch-text { color: cyan; font-size: 50px; text-shadow: 3px 3px red; }
+        .glitch-text { color: cyan; font-size: 50px; text-shadow: 3px 3px red; letter-spacing: 5px; }
     </style>
 </head>
 <body>
 
 <div id="menu">
-    <h1 style="color: white; margin-bottom: 40px; filter: drop-shadow(0 0 10px cyan);">ВЫБЕРИ ПЕРСОНАЖА</h1>
+    <h1 style="color: white; margin-bottom: 40px; filter: drop-shadow(0 0 10px cyan);">SELECT YOUR HERO</h1>
     <div class="btn-list">
-        <button class="btn" onclick="startGame('ANTETON')">Антетон</button>
-        <button class="btn" onclick="startGame('CLASSIC')">Классик</button>
-        <button class="btn" onclick="startGame('GLITCH')">Глич</button>
-        <button class="btn" onclick="startGame('TV')">ТВ Антетон</button>
+        <button class="btn" onclick="startGame('ANTETON')">Anteton</button>
+        <button class="btn" onclick="startGame('CLASSIC')">Classic</button>
+        <button class="btn" onclick="startGame('GLITCH')">Glitch</button>
+        <button class="btn" onclick="startGame('TV')">TV Anteton</button>
     </div>
 </div>
 
 <div id="gui">
-    <div id="char-name" style="font-size: 20px; font-weight: bold;">ГЕРОЙ: ---</div>
+    <div id="char-name" style="font-size: 20px; font-weight: bold;">HERO: ---</div>
     <hr style="border: 0; border-top: 1px solid #00ff00;">
-    <div>W,A,S,D - Ходьба</div>
-    <div>P - THE GAME ПАУЗА</div>
+    <div>W,A,S,D - Move</div>
+    <div>P - THE GAME PAUSE</div>
 </div>
 
 <div id="pause-overlay">
-    <div class="glitch-text">THE GAME: ПАУЗА</div>
+    <div class="glitch-text">THE GAME: PAUSE</div>
 </div>
 
 <script type="importmap">
@@ -74,12 +74,12 @@
     import * as THREE from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-    // --- НАСТРОЙКИ ФАЙЛОВ С РУССКИМИ НАЗВАНИЯМИ ---
+    // --- CHARACTER FILE SETTINGS (ENGLISH) ---
     const CHARS = {
-        ANTETON: { file: 'антетон.gltf', name: 'Антетон' },
-        CLASSIC: { file: 'классик.gltf', name: 'Классик' },
-        GLITCH: { file: 'глич.gltf', name: 'Глич' },
-        TV: { file: 'тв антетон.gltf', name: 'ТВ Антетон' }
+        ANTETON: { file: 'anteton.gltf', name: 'Anteton' },
+        CLASSIC: { file: 'classic.gltf', name: 'Classic' },
+        GLITCH: { file: 'glitch.gltf', name: 'Glitch' },
+        TV: { file: 'tv_anteton.gltf', name: 'TV Anteton' }
     };
 
     let scene, camera, renderer, playerModel;
@@ -87,11 +87,11 @@
     let move = { f: false, b: false, l: false, r: false };
     const loader = new GLTFLoader();
 
-    // Запуск игры
+    // Start Game
     window.startGame = (type) => {
         document.getElementById('menu').style.display = 'none';
         document.getElementById('gui').style.visibility = 'visible';
-        document.getElementById('char-name').innerText = "ГЕРОЙ: " + CHARS[type].name;
+        document.getElementById('char-name').innerText = "HERO: " + CHARS[type].name;
         
         setupWorld(type);
     };
@@ -111,7 +111,7 @@
         sun.position.set(10, 20, 10);
         scene.add(ambient, sun);
 
-        // Поле (Трава)
+        // Ground (Grass)
         const grass = new THREE.Mesh(
             new THREE.PlaneGeometry(100, 100),
             new THREE.MeshStandardMaterial({ color: 0x228B22 })
@@ -119,9 +119,9 @@
         grass.rotation.x = -Math.PI / 2;
         scene.add(grass);
 
-        // Желтые дома
-        createHouse(-12, 0); 
-        createHouse(12, 0); 
+        // Yellow Houses from the book
+        createHouse(-12, 0); // Residential
+        createHouse(12, 0);  // Cafeteria
 
         window.addEventListener('keydown', (e) => handleInput(e.code, true));
         window.addEventListener('keyup', (e) => handleInput(e.code, false));
@@ -140,10 +140,7 @@
 
     function setupWorld(selectedType) {
         Object.keys(CHARS).forEach((key, index) => {
-            // Кодируем русские буквы и пробелы для браузера
-            const encodedPath = encodeURI(CHARS[key].file);
-            
-            loader.load(encodedPath, (gltf) => {
+            loader.load(CHARS[key].file, (gltf) => {
                 const model = gltf.scene;
                 if (key === selectedType) {
                     playerModel = model;
@@ -152,11 +149,11 @@
                     model.position.set((index - 1.5) * 5, 0, -5);
                 }
                 scene.add(model);
-                console.log("Загружен: " + CHARS[key].file);
+                console.log("Loaded: " + CHARS[key].file);
             }, undefined, (err) => {
-                console.warn("Файл не найден: " + CHARS[key].file);
-                // Заглушка
-                const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({color: 0x800080}));
+                console.warn("File not found: " + CHARS[key].file);
+                // Placeholder cube
+                const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({color: 0x888888}));
                 if (key === selectedType) { playerModel = cube; playerModel.position.set(0, 1, 8); }
                 else { cube.position.set((index - 1.5) * 5, 1, -5); }
                 scene.add(cube);
@@ -188,6 +185,7 @@
             if (move.l) playerModel.position.x -= speed;
             if (move.r) playerModel.position.x += speed;
 
+            // Camera follow (3rd person)
             camera.position.set(playerModel.position.x, playerModel.position.y + 4, playerModel.position.z + 8);
             camera.lookAt(playerModel.position);
         }

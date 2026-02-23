@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Pocket World: Connection Fix</title>
+    <title>Pocket World: Names & Clean Up</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Consolas', monospace; background: #000; color: #00ffff; }
         #menu {
@@ -32,13 +32,13 @@
             background: rgba(0, 0, 0, 0.8); padding: 15px; border: 1px solid #00ff00;
             pointer-events: none; visibility: hidden; z-index: 50;
         }
-        #voice-indicator { color: #ff00ff; font-weight: bold; display: none; font-size: 12px; }
     </style>
 </head>
 <body>
 
 <div id="menu">
     <h1>POCKET WORLD</h1>
+    <input type="text" id="userName" placeholder="Your Nickname" style="margin-bottom: 20px; width: 250px;">
     <div class="btn-list">
         <button class="btn" onclick="selectChar('ANTETON')">Anteton</button>
         <button class="btn" onclick="selectChar('CLASSIC')">Classic</button>
@@ -55,7 +55,6 @@
                 <button class="btn" style="font-size: 11px; padding: 10px;" onclick="hostGame()">Host</button>
                 <button class="btn" style="font-size: 11px; padding: 10px;" onclick="joinGame()">Join</button>
             </div>
-            <div id="peer-id-display" style="color:yellow; margin-top:10px; font-size:11px;"></div>
         </div>
     </div>
 </div>
@@ -63,9 +62,8 @@
 <div id="gui">
     <div id="char-name">HERO: ---</div>
     <div id="status">VOICE: Waiting...</div>
-    <div id="voice-indicator">● TRANSMITTING VOICE</div>
     <hr>
-    <div>Enter - Chat | Q, E - Skills</div>
+    <div>Enter - Chat | WASD - Move</div>
 </div>
 
 <div id="chat-box">
@@ -96,8 +94,8 @@
 
     let scene, camera, renderer, clock = new THREE.Clock();
     let playerModel, mixer, actions = {}, currentActionName = "Idle";
-    let remotePlayer, remoteMixer, remoteActions = {};
-    let selectedType = null, peer, conn, myStream;
+    let remotePlayer, remoteMixer, remoteActions = {}, remoteLabel;
+    let selectedType = null, peer, conn, myStream, myName = "Player";
     let move = { f: false, b: false, l: false, r: false };
     let velocityY = 0, isGrounded = true;
     let cameraAzimuth = 0, cameraPolar = 0.8, isMouseDown = false;
@@ -105,102 +103,103 @@
     window.selectChar = (t) => { selectedType = t; document.getElementById('selected-label').innerText = "Selected: " + CHARS[t].name; };
     window.startSingle = () => { if(!selectedType) return alert("Select hero!"); initGame(); };
 
-    // --- MIC & AUDIO ---
-    async function initMedia() {
-        try {
-            myStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            document.getElementById('status').innerText = "VOICE: Ready";
-        } catch(e) { 
-            addChatMessage("System: Mic access denied.", "Error");
-        }
+    // --- НИКИ (3D Labels) ---
+    function createNameLabel(text) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 256; canvas.height = 64;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(0, 0, 256, 64);
+        ctx.font = 'bold 32px Arial';
+        ctx.fillStyle = '#00ffff';
+        ctx.textAlign = 'center';
+        ctx.fillText(text, 128, 45);
+        
+        const texture = new THREE.CanvasTexture(canvas);
+        const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+        const sprite = new THREE.Sprite(spriteMaterial);
+        sprite.scale.set(2, 0.5, 1);
+        sprite.position.y = 2.5; // Над головой
+        return sprite;
     }
 
-    // --- PEER CONFIG (RUSSIA CONNECTION FIX) ---
+    // --- NETWORK ---
+    async function initMedia() {
+        try { myStream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch(e) {}
+    }
+
     function createPeer(id = null) {
-        const config = {
-            host: '0.peerjs.com', // Можно сменить на 'peerjs.com' если не грузит
-            port: 443,
-            secure: true,
-            config: {
-                'iceServers': [
-                    { url: 'stun:stun.l.google.com:19302' },
-                    { url: 'stun:stun1.l.google.com:19302' },
-                    { url: 'stun:stun2.l.google.com:19302' }
-                ]
-            }
-        };
+        const config = { host: '0.peerjs.com', port: 443, secure: true, config: { 'iceServers': [{ url: 'stun:stun.l.google.com:19302' }] } };
         return id ? new Peer(id, config) : new Peer(config);
     }
 
     window.hostGame = async () => {
         if(!selectedType) return alert("Select hero!");
+        myName = document.getElementById('userName').value || "Host";
         await initMedia();
-        const customId = document.getElementById('roomId').value;
-        peer = createPeer(customId);
-        
-        peer.on('open', id => { 
-            document.getElementById('peer-id-display').innerText = "ID: " + id; 
-            initGame(); 
-        });
-        peer.on('call', call => {
-            call.answer(myStream);
-            call.on('stream', stream => setupRemoteAudio(stream));
-        });
+        peer = createPeer(document.getElementById('roomId').value);
+        peer.on('open', id => initGame());
         peer.on('connection', c => { conn = c; setupConn(); });
-        peer.on('error', err => addChatMessage("Network: " + err.type, "System"));
+        peer.on('call', call => { call.answer(myStream); call.on('stream', s => setupRemoteAudio(s)); });
     };
 
     window.joinGame = async () => {
         const id = document.getElementById('roomId').value;
-        if(!id || !selectedType) return alert("Enter Room Name!");
+        if(!id || !selectedType) return alert("Room Name & Hero!");
+        myName = document.getElementById('userName').value || "Guest";
         await initMedia();
         peer = createPeer();
         peer.on('open', () => {
             conn = peer.connect(id);
             setupConn();
             const call = peer.call(id, myStream);
-            call.on('stream', stream => setupRemoteAudio(stream));
+            call.on('stream', s => setupRemoteAudio(s));
             initGame();
         });
-        peer.on('error', err => addChatMessage("Network: " + err.type, "System"));
     };
 
-    function setupRemoteAudio(stream) {
-        const audio = new Audio();
-        audio.srcObject = stream;
-        audio.play();
-        document.getElementById('voice-indicator').style.display = 'block';
-    }
-
     function setupConn() {
-        conn.on('open', () => conn.send({ type: 'init', char: selectedType }));
+        conn.on('open', () => conn.send({ type: 'init', char: selectedType, name: myName }));
         conn.on('data', data => {
-            if(data.type === 'init') spawnRemote(data.char);
+            if(data.type === 'init') spawnRemote(data.char, data.name);
             if(data.type === 'sync' && remotePlayer) {
                 remotePlayer.position.set(data.x, data.y, data.z);
                 remotePlayer.rotation.y = data.ry;
                 playRemoteAnim(data.anim);
             }
             if(data.type === 'action') playRemoteAnim(data.action, true);
-            if(data.type === 'chat') addChatMessage(data.msg, "Guest");
+            if(data.type === 'chat') addChatMessage(data.msg, data.name);
         });
+        // ИСПРАВЛЕНИЕ БАГА "ПРИЗРАКА"
+        conn.on('close', removeRemotePlayer);
+        conn.on('error', removeRemotePlayer);
+    }
+
+    function removeRemotePlayer() {
+        if(remotePlayer) {
+            scene.remove(remotePlayer);
+            remotePlayer = null;
+            addChatMessage("Player disconnected", "System");
+        }
+    }
+
+    function setupRemoteAudio(stream) {
+        const audio = new Audio(); audio.srcObject = stream; audio.play();
     }
 
     function addChatMessage(msg, user) {
         const msgDiv = document.createElement('div');
-        msgDiv.innerHTML = `<span style="color: #00ff00;">[${user}]</span>: ${msg}`;
-        const container = document.getElementById('chat-messages');
-        container.appendChild(msgDiv);
-        container.scrollTop = container.scrollHeight;
+        msgDiv.innerHTML = `<span style="color:yellow">[${user}]</span> ${msg}`;
+        document.getElementById('chat-messages').appendChild(msgDiv);
+        document.getElementById('chat-messages').scrollTop = 9999;
     }
 
-    // --- GAME ENGINE ---
+    // --- GAME ---
     function initGame() {
         document.getElementById('menu').style.display = 'none';
         document.getElementById('gui').style.visibility = 'visible';
         document.getElementById('chat-box').style.visibility = 'visible';
-        document.getElementById('char-name').innerText = "HERO: " + CHARS[selectedType].name;
-
+        
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87CEEB);
         camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -208,7 +207,7 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+        scene.add(new THREE.AmbientLight(0xffffff, 1));
         const sun = new THREE.DirectionalLight(0xffffff, 0.8);
         sun.position.set(5, 10, 7);
         scene.add(sun);
@@ -229,16 +228,22 @@
             mixer = new THREE.AnimationMixer(playerModel);
             gltf.animations.forEach(clip => actions[clip.name] = mixer.clipAction(clip));
             if(actions['Idle']) actions['Idle'].play();
+            // Свой ник над собой (опционально)
+            playerModel.add(createNameLabel(myName));
         });
     }
 
-    function spawnRemote(charType) {
+    function spawnRemote(charType, name) {
         new GLTFLoader().load(CHARS[charType].file, gltf => {
             remotePlayer = gltf.scene;
             scene.add(remotePlayer);
             remoteMixer = new THREE.AnimationMixer(remotePlayer);
             gltf.animations.forEach(clip => remoteActions[clip.name] = remoteMixer.clipAction(clip));
             if(remoteActions['Idle']) remoteActions['Idle'].play();
+            
+            remoteLabel = createNameLabel(name);
+            remotePlayer.add(remoteLabel);
+            addChatMessage(`${name} joined the game!`, "System");
         });
     }
 
@@ -254,14 +259,7 @@
         const action = actions[name];
         if(actions[currentActionName]) actions[currentActionName].stop();
         action.reset().setLoop(THREE.LoopOnce).play();
-        action.clampWhenFinished = false;
-        const onFinish = (e) => {
-            if(e.action === action) {
-                mixer.removeEventListener('finished', onFinish);
-                action.stop();
-                playAnim('Idle');
-            }
-        };
+        const onFinish = (e) => { if(e.action === action) { mixer.removeEventListener('finished', onFinish); action.stop(); playAnim('Idle'); } };
         mixer.addEventListener('finished', onFinish);
         if(conn) conn.send({ type: 'action', action: name });
     }
@@ -281,26 +279,21 @@
         window.addEventListener('keydown', e => {
             if(document.activeElement === chatInput) {
                 if(e.code === 'Enter') {
-                    const msg = chatInput.value;
-                    if(msg && conn) { conn.send({ type: 'chat', msg: msg }); addChatMessage(msg, "You"); }
+                    if(chatInput.value && conn) { conn.send({ type: 'chat', msg: chatInput.value, name: myName }); addChatMessage(chatInput.value, myName); }
                     chatInput.value = ''; chatInput.blur();
                 }
                 return;
             }
             if(e.code === 'Enter') chatInput.focus();
-            if(e.code === 'KeyW') move.f = true;
-            if(e.code === 'KeyS') move.b = true;
-            if(e.code === 'KeyA') move.l = true;
-            if(e.code === 'KeyD') move.r = true;
+            if(e.code === 'KeyW') move.f = true; if(e.code === 'KeyS') move.b = true;
+            if(e.code === 'KeyA') move.l = true; if(e.code === 'KeyD') move.r = true;
             if(e.code === 'Space' && isGrounded) { velocityY = 0.25; isGrounded = false; playActionOnce('Jump'); }
             if(e.code === 'KeyQ') playActionOnce('Skill_Q');
             if(e.code === 'KeyE') playActionOnce('Skill_E');
         });
         window.addEventListener('keyup', e => {
-            if(e.code === 'KeyW') move.f = false;
-            if(e.code === 'KeyS') move.b = false;
-            if(e.code === 'KeyA') move.l = false;
-            if(e.code === 'KeyD') move.r = false;
+            if(e.code === 'KeyW') move.f = false; if(e.code === 'KeyS') move.b = false;
+            if(e.code === 'KeyA') move.l = false; if(e.code === 'KeyD') move.r = false;
         });
         window.addEventListener('mousedown', e => { if(e.button === 0) playActionOnce('Attack'); isMouseDown = true; });
         window.addEventListener('mouseup', () => isMouseDown = false);

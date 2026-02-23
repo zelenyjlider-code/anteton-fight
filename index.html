@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Pocket World: Voice & Chat</title>
+    <title>Pocket World: Connection Fix</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Consolas', monospace; background: #000; color: #00ffff; }
         #menu {
@@ -19,7 +19,6 @@
         #network-panel { margin-top: 20px; padding: 15px; border: 1px dashed #555; text-align: center; }
         input { background: #111; border: 1px solid #00ffff; color: #00ffff; padding: 10px; margin: 5px; outline: none; text-align: center; }
         
-        /* ЧАТ */
         #chat-box {
             position: absolute; bottom: 20px; left: 20px; width: 300px; height: 200px;
             background: rgba(0, 0, 0, 0.6); border: 1px solid #00ffff;
@@ -33,12 +32,13 @@
             background: rgba(0, 0, 0, 0.8); padding: 15px; border: 1px solid #00ff00;
             pointer-events: none; visibility: hidden; z-index: 50;
         }
+        #voice-indicator { color: #ff00ff; font-weight: bold; display: none; font-size: 12px; }
     </style>
 </head>
 <body>
 
 <div id="menu">
-    <h1>POCKET WORLD ONLINE</h1>
+    <h1>POCKET WORLD</h1>
     <div class="btn-list">
         <button class="btn" onclick="selectChar('ANTETON')">Anteton</button>
         <button class="btn" onclick="selectChar('CLASSIC')">Classic</button>
@@ -48,23 +48,24 @@
     <div id="selected-label">Selected: None</div>
 
     <div style="width: 340px;">
-        <button class="btn" style="width:100%; border-color:#ff00ff; color:#ff00ff;" onclick="startSingle()">Play Singleplayer</button>
+        <button class="btn" style="width:100%; border-color:#ff00ff; color:#ff00ff;" onclick="startSingle()">Singleplayer</button>
         <div id="network-panel">
             <input type="text" id="roomId" placeholder="Room Name">
             <div style="display: flex; gap: 5px; justify-content: center;">
                 <button class="btn" style="font-size: 11px; padding: 10px;" onclick="hostGame()">Host</button>
                 <button class="btn" style="font-size: 11px; padding: 10px;" onclick="joinGame()">Join</button>
             </div>
-            <div id="peer-id-display" style="color:yellow; margin-top:10px; font-size:12px;"></div>
+            <div id="peer-id-display" style="color:yellow; margin-top:10px; font-size:11px;"></div>
         </div>
     </div>
 </div>
 
 <div id="gui">
     <div id="char-name">HERO: ---</div>
-    <div id="status">VOICE: Off</div>
+    <div id="status">VOICE: Waiting...</div>
+    <div id="voice-indicator">● TRANSMITTING VOICE</div>
     <hr>
-    <div>Enter - Chat | LMB - Attack</div>
+    <div>Enter - Chat | Q, E - Skills</div>
 </div>
 
 <div id="chat-box">
@@ -104,52 +105,71 @@
     window.selectChar = (t) => { selectedType = t; document.getElementById('selected-label').innerText = "Selected: " + CHARS[t].name; };
     window.startSingle = () => { if(!selectedType) return alert("Select hero!"); initGame(); };
 
-    // --- NETWORK & VOICE ---
-    async function getMedia() {
+    // --- MIC & AUDIO ---
+    async function initMedia() {
         try {
-            myStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            myStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             document.getElementById('status').innerText = "VOICE: Ready";
-        } catch(e) { console.log("Mic denied"); }
+        } catch(e) { 
+            addChatMessage("System: Mic access denied.", "Error");
+        }
+    }
+
+    // --- PEER CONFIG (RUSSIA CONNECTION FIX) ---
+    function createPeer(id = null) {
+        const config = {
+            host: '0.peerjs.com', // Можно сменить на 'peerjs.com' если не грузит
+            port: 443,
+            secure: true,
+            config: {
+                'iceServers': [
+                    { url: 'stun:stun.l.google.com:19302' },
+                    { url: 'stun:stun1.l.google.com:19302' },
+                    { url: 'stun:stun2.l.google.com:19302' }
+                ]
+            }
+        };
+        return id ? new Peer(id, config) : new Peer(config);
     }
 
     window.hostGame = async () => {
         if(!selectedType) return alert("Select hero!");
-        await getMedia();
+        await initMedia();
         const customId = document.getElementById('roomId').value;
-        peer = customId ? new Peer(customId) : new Peer();
+        peer = createPeer(customId);
         
         peer.on('open', id => { 
-            document.getElementById('peer-id-display').innerText = "ROOM: " + id; 
+            document.getElementById('peer-id-display').innerText = "ID: " + id; 
             initGame(); 
         });
-
         peer.on('call', call => {
             call.answer(myStream);
-            call.on('stream', remoteStream => playAudio(remoteStream));
+            call.on('stream', stream => setupRemoteAudio(stream));
         });
-
         peer.on('connection', c => { conn = c; setupConn(); });
+        peer.on('error', err => addChatMessage("Network: " + err.type, "System"));
     };
 
     window.joinGame = async () => {
         const id = document.getElementById('roomId').value;
-        if(!id || !selectedType) return alert("Enter Room & Hero!");
-        await getMedia();
-        peer = new Peer();
+        if(!id || !selectedType) return alert("Enter Room Name!");
+        await initMedia();
+        peer = createPeer();
         peer.on('open', () => {
             conn = peer.connect(id);
             setupConn();
             const call = peer.call(id, myStream);
-            call.on('stream', remoteStream => playAudio(remoteStream));
+            call.on('stream', stream => setupRemoteAudio(stream));
             initGame();
         });
+        peer.on('error', err => addChatMessage("Network: " + err.type, "System"));
     };
 
-    function playAudio(stream) {
+    function setupRemoteAudio(stream) {
         const audio = new Audio();
         audio.srcObject = stream;
         audio.play();
-        document.getElementById('status').innerText = "VOICE: Active";
+        document.getElementById('voice-indicator').style.display = 'block';
     }
 
     function setupConn() {
@@ -168,13 +188,13 @@
 
     function addChatMessage(msg, user) {
         const msgDiv = document.createElement('div');
-        msgDiv.innerText = `${user}: ${msg}`;
+        msgDiv.innerHTML = `<span style="color: #00ff00;">[${user}]</span>: ${msg}`;
         const container = document.getElementById('chat-messages');
         container.appendChild(msgDiv);
         container.scrollTop = container.scrollHeight;
     }
 
-    // --- CORE GAME ---
+    // --- GAME ENGINE ---
     function initGame() {
         document.getElementById('menu').style.display = 'none';
         document.getElementById('gui').style.visibility = 'visible';
@@ -262,12 +282,8 @@
             if(document.activeElement === chatInput) {
                 if(e.code === 'Enter') {
                     const msg = chatInput.value;
-                    if(msg && conn) {
-                        conn.send({ type: 'chat', msg: msg });
-                        addChatMessage(msg, "You");
-                    }
-                    chatInput.value = '';
-                    chatInput.blur();
+                    if(msg && conn) { conn.send({ type: 'chat', msg: msg }); addChatMessage(msg, "You"); }
+                    chatInput.value = ''; chatInput.blur();
                 }
                 return;
             }
@@ -310,7 +326,7 @@
                 if(move.b) { playerModel.position.x += Math.sin(cameraAzimuth)*speed; playerModel.position.z += Math.cos(cameraAzimuth)*speed; playerModel.rotation.y = cameraAzimuth; }
                 if(move.l) { playerModel.position.x -= Math.cos(cameraAzimuth)*speed; playerModel.position.z += Math.sin(cameraAzimuth)*speed; playerModel.rotation.y = cameraAzimuth - Math.PI/2; }
                 if(move.r) { playerModel.position.x += Math.cos(cameraAzimuth)*speed; playerModel.position.z -= Math.sin(cameraAzimuth)*speed; playerModel.rotation.y = cameraAzimuth + Math.PI/2; }
-            } else if(isGrounded && !mixer.existingAction(actions['Skill_E'])?.isRunning()) {
+            } else if(isGrounded && !mixer.existingAction(actions['Skill_E'])?.isRunning() && !mixer.existingAction(actions['Attack'])?.isRunning()) {
                 playAnim('Idle');
             }
             playerModel.position.y += velocityY;

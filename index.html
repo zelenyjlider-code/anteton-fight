@@ -2,11 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>The Game: Pocket World Fighting</title>
+    <title>The Game: Pocket World - Camera Update</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Consolas', monospace; background: #000; }
-        
-        /* Character Selection Menu */
         #menu {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: radial-gradient(circle, #1a1a1a, #000);
@@ -19,29 +17,24 @@
             text-transform: uppercase;
         }
         .btn:hover { background: #00ffff; color: black; box-shadow: 0 0 30px #00ffff; }
-
-        /* Game UI */
         #gui {
             position: absolute; top: 20px; left: 20px; color: #00ff00;
             background: rgba(0, 30, 0, 0.8); padding: 15px; border: 1px solid #00ff00;
             pointer-events: none; visibility: hidden; z-index: 50;
         }
-
-        /* Pause Overlay */
         #pause-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 255, 255, 0.1); display: none;
             border: 15px solid rgba(0, 255, 255, 0.2); 
-            justify-content: center; align-items: center; z-index: 80;
-            pointer-events: none;
+            justify-content: center; align-items: center; z-index: 80; pointer-events: none;
         }
-        .glitch-text { color: cyan; font-size: 50px; text-shadow: 3px 3px red; letter-spacing: 5px; }
+        .glitch-text { color: cyan; font-size: 50px; text-shadow: 3px 3px red; }
     </style>
 </head>
 <body>
 
 <div id="menu">
-    <h1 style="color: white; margin-bottom: 40px; filter: drop-shadow(0 0 10px cyan);">SELECT YOUR HERO</h1>
+    <h1 style="color: white; margin-bottom: 40px;">SELECT YOUR HERO</h1>
     <div class="btn-list">
         <button class="btn" onclick="startGame('ANTETON')">Anteton</button>
         <button class="btn" onclick="startGame('CLASSIC')">Classic</button>
@@ -53,7 +46,8 @@
 <div id="gui">
     <div id="char-name" style="font-size: 20px; font-weight: bold;">HERO: ---</div>
     <hr style="border: 0; border-top: 1px solid #00ff00;">
-    <div>W,A,S,D - Move</div>
+    <div>WASD - Move</div>
+    <div>Hold Mouse Left - Rotate Camera</div>
     <div>P - THE GAME PAUSE</div>
 </div>
 
@@ -74,7 +68,6 @@
     import * as THREE from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-    // --- CHARACTER FILE SETTINGS (ENGLISH) ---
     const CHARS = {
         ANTETON: { file: 'anteton.gltf', name: 'Anteton' },
         CLASSIC: { file: 'classic.gltf', name: 'Classic' },
@@ -85,14 +78,20 @@
     let scene, camera, renderer, playerModel;
     let isPaused = false;
     let move = { f: false, b: false, l: false, r: false };
+    
+    // Camera Orbit Variables
+    let isMouseDown = false;
+    let mouseX = 0, mouseY = 0;
+    let cameraAzimuth = 0; // Horizontal angle
+    let cameraPolar = 1.0; // Vertical angle
+    const cameraDistance = 10;
+
     const loader = new GLTFLoader();
 
-    // Start Game
     window.startGame = (type) => {
         document.getElementById('menu').style.display = 'none';
         document.getElementById('gui').style.visibility = 'visible';
         document.getElementById('char-name').innerText = "HERO: " + CHARS[type].name;
-        
         setupWorld(type);
     };
 
@@ -101,39 +100,40 @@
         scene.background = new THREE.Color(0x87CEEB); 
 
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
         const sun = new THREE.DirectionalLight(0xffffff, 1);
         sun.position.set(10, 20, 10);
-        scene.add(ambient, sun);
+        scene.add(sun);
 
-        // Ground (Grass)
-        const grass = new THREE.Mesh(
-            new THREE.PlaneGeometry(100, 100),
-            new THREE.MeshStandardMaterial({ color: 0x228B22 })
-        );
+        const grass = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0x228B22 }));
         grass.rotation.x = -Math.PI / 2;
         scene.add(grass);
 
-        // Yellow Houses from the book
-        createHouse(-12, 0); // Residential
-        createHouse(12, 0);  // Cafeteria
+        createHouse(-12, 0); createHouse(12, 0);
 
+        // Input Events
         window.addEventListener('keydown', (e) => handleInput(e.code, true));
         window.addEventListener('keyup', (e) => handleInput(e.code, false));
+        
+        // Mouse Controls
+        window.addEventListener('mousedown', () => isMouseDown = true);
+        window.addEventListener('mouseup', () => isMouseDown = false);
+        window.addEventListener('mousemove', (e) => {
+            if (isMouseDown && !isPaused) {
+                cameraAzimuth -= e.movementX * 0.01;
+                cameraPolar = Math.max(0.1, Math.min(Math.PI / 2.1, cameraPolar + e.movementY * 0.01));
+            }
+        });
 
         animate();
     }
 
     function createHouse(x, z) {
-        const house = new THREE.Mesh(
-            new THREE.BoxGeometry(7, 6, 7),
-            new THREE.MeshStandardMaterial({ color: 0xFFFF00 })
-        );
+        const house = new THREE.Mesh(new THREE.BoxGeometry(7, 6, 7), new THREE.MeshStandardMaterial({ color: 0xFFFF00 }));
         house.position.set(x, 3, z);
         scene.add(house);
     }
@@ -149,10 +149,7 @@
                     model.position.set((index - 1.5) * 5, 0, -5);
                 }
                 scene.add(model);
-                console.log("Loaded: " + CHARS[key].file);
-            }, undefined, (err) => {
-                console.warn("File not found: " + CHARS[key].file);
-                // Placeholder cube
+            }, undefined, () => {
                 const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({color: 0x888888}));
                 if (key === selectedType) { playerModel = cube; playerModel.position.set(0, 1, 8); }
                 else { cube.position.set((index - 1.5) * 5, 1, -5); }
@@ -180,20 +177,37 @@
 
         if (playerModel && !isPaused) {
             const speed = 0.15;
-            if (move.f) playerModel.position.z -= speed;
-            if (move.b) playerModel.position.z += speed;
-            if (move.l) playerModel.position.x -= speed;
-            if (move.r) playerModel.position.x += speed;
+            // Character movement based on camera orientation
+            if (move.f) {
+                playerModel.position.x -= Math.sin(cameraAzimuth) * speed;
+                playerModel.position.z -= Math.cos(cameraAzimuth) * speed;
+                playerModel.rotation.y = cameraAzimuth;
+            }
+            if (move.b) {
+                playerModel.position.x += Math.sin(cameraAzimuth) * speed;
+                playerModel.position.z += Math.cos(cameraAzimuth) * speed;
+            }
+            // Side movement
+            if (move.l) {
+                playerModel.position.x -= Math.cos(cameraAzimuth) * speed;
+                playerModel.position.z += Math.sin(cameraAzimuth) * speed;
+            }
+            if (move.r) {
+                playerModel.position.x += Math.cos(cameraAzimuth) * speed;
+                playerModel.position.z -= Math.sin(cameraAzimuth) * speed;
+            }
 
-            // Camera follow (3rd person)
-            camera.position.set(playerModel.position.x, playerModel.position.y + 4, playerModel.position.z + 8);
-            camera.lookAt(playerModel.position);
+            // Camera positioning (Spherical coordinates)
+            camera.position.x = playerModel.position.x + cameraDistance * Math.sin(cameraAzimuth) * Math.cos(cameraPolar);
+            camera.position.y = playerModel.position.y + cameraDistance * Math.sin(cameraPolar);
+            camera.position.z = playerModel.position.z + cameraDistance * Math.cos(cameraAzimuth) * Math.cos(cameraPolar);
+            camera.lookAt(playerModel.position.x, playerModel.position.y + 2, playerModel.position.z);
         }
+
         renderer.render(scene, camera);
     }
 
     init();
-
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();

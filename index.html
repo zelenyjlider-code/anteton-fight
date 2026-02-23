@@ -2,9 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>The Game: Pocket World - Camera Update</title>
+    <title>The Game: Pocket World</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Consolas', monospace; background: #000; }
+        
+        /* Menu */
         #menu {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: radial-gradient(circle, #1a1a1a, #000);
@@ -17,11 +19,15 @@
             text-transform: uppercase;
         }
         .btn:hover { background: #00ffff; color: black; box-shadow: 0 0 30px #00ffff; }
+
+        /* Game UI */
         #gui {
             position: absolute; top: 20px; left: 20px; color: #00ff00;
             background: rgba(0, 30, 0, 0.8); padding: 15px; border: 1px solid #00ff00;
             pointer-events: none; visibility: hidden; z-index: 50;
         }
+
+        /* Pause */
         #pause-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 255, 255, 0.1); display: none;
@@ -34,7 +40,7 @@
 <body>
 
 <div id="menu">
-    <h1 style="color: white; margin-bottom: 40px;">SELECT YOUR HERO</h1>
+    <h1 style="color: white; margin-bottom: 40px;">SELECT CHARACTER</h1>
     <div class="btn-list">
         <button class="btn" onclick="startGame('ANTETON')">Anteton</button>
         <button class="btn" onclick="startGame('CLASSIC')">Classic</button>
@@ -47,7 +53,7 @@
     <div id="char-name" style="font-size: 20px; font-weight: bold;">HERO: ---</div>
     <hr style="border: 0; border-top: 1px solid #00ff00;">
     <div>WASD - Move</div>
-    <div>Hold Mouse Left - Rotate Camera</div>
+    <div>Hold Left Mouse - Orbit Camera</div>
     <div>P - THE GAME PAUSE</div>
 </div>
 
@@ -79,12 +85,11 @@
     let isPaused = false;
     let move = { f: false, b: false, l: false, r: false };
     
-    // Camera Orbit Variables
+    // Camera Variables
     let isMouseDown = false;
-    let mouseX = 0, mouseY = 0;
-    let cameraAzimuth = 0; // Horizontal angle
-    let cameraPolar = 1.0; // Vertical angle
-    const cameraDistance = 10;
+    let cameraAzimuth = 0; 
+    let cameraPolar = 1.0; 
+    const cameraDistance = 8;
 
     const loader = new GLTFLoader();
 
@@ -109,23 +114,24 @@
         sun.position.set(10, 20, 10);
         scene.add(sun);
 
-        const grass = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0x228B22 }));
+        // Ground
+        const grass = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0x228B22 }));
         grass.rotation.x = -Math.PI / 2;
         scene.add(grass);
 
-        createHouse(-12, 0); createHouse(12, 0);
+        // Yellow Houses
+        createHouse(-15, 0); 
+        createHouse(15, 0);
 
-        // Input Events
-        window.addEventListener('keydown', (e) => handleInput(e.code, true));
-        window.addEventListener('keyup', (e) => handleInput(e.code, false));
-        
-        // Mouse Controls
+        // Events
+        window.addEventListener('keydown', (e) => handleKey(e.code, true));
+        window.addEventListener('keyup', (e) => handleKey(e.code, false));
         window.addEventListener('mousedown', () => isMouseDown = true);
         window.addEventListener('mouseup', () => isMouseDown = false);
         window.addEventListener('mousemove', (e) => {
             if (isMouseDown && !isPaused) {
                 cameraAzimuth -= e.movementX * 0.01;
-                cameraPolar = Math.max(0.1, Math.min(Math.PI / 2.1, cameraPolar + e.movementY * 0.01));
+                cameraPolar = Math.max(0.1, Math.min(Math.PI / 2.2, cameraPolar + e.movementY * 0.01));
             }
         });
 
@@ -133,8 +139,8 @@
     }
 
     function createHouse(x, z) {
-        const house = new THREE.Mesh(new THREE.BoxGeometry(7, 6, 7), new THREE.MeshStandardMaterial({ color: 0xFFFF00 }));
-        house.position.set(x, 3, z);
+        const house = new THREE.Mesh(new THREE.BoxGeometry(8, 7, 8), new THREE.MeshStandardMaterial({ color: 0xFFFF00 }));
+        house.position.set(x, 3.5, z);
         scene.add(house);
     }
 
@@ -144,32 +150,31 @@
                 const model = gltf.scene;
                 if (key === selectedType) {
                     playerModel = model;
-                    playerModel.position.set(0, 0, 8);
+                    playerModel.position.set(0, 0, 10);
                 } else {
-                    model.position.set((index - 1.5) * 5, 0, -5);
+                    model.position.set((index - 1.5) * 6, 0, -10);
                 }
                 scene.add(model);
             }, undefined, () => {
-                const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({color: 0x888888}));
-                if (key === selectedType) { playerModel = cube; playerModel.position.set(0, 1, 8); }
-                else { cube.position.set((index - 1.5) * 5, 1, -5); }
+                const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({color: 0x555555}));
+                if (key === selectedType) { playerModel = cube; playerModel.position.set(0, 1, 10); }
+                else { cube.position.set((index - 1.5) * 6, 1, -10); }
                 scene.add(cube);
             });
         });
     }
 
-    function handleInput(code, state) {
-        if (code === 'KeyW') move.f = state;
-        if (code === 'KeyS') move.b = state;
-        if (code === 'KeyA') move.l = state;
-        if (code === 'KeyD') move.r = state;
-        if (code === 'KeyP' && state) togglePause();
+    function handleKey(code, val) {
+        if (code === 'KeyW') move.f = val;
+        if (code === 'KeyS') move.b = val;
+        if (code === 'KeyA') move.l = val;
+        if (code === 'KeyD') move.r = val;
+        if (code === 'KeyP' && val) togglePause();
     }
 
     function togglePause() {
         isPaused = !isPaused;
         document.getElementById('pause-overlay').style.display = isPaused ? 'flex' : 'none';
-        scene.background = new THREE.Color(isPaused ? 0x112222 : 0x87CEEB);
     }
 
     function animate() {
@@ -177,31 +182,42 @@
 
         if (playerModel && !isPaused) {
             const speed = 0.15;
-            // Character movement based on camera orientation
+            let moved = false;
+            let targetRotation = playerModel.rotation.y;
+
+            // Move relative to camera azimuth
             if (move.f) {
                 playerModel.position.x -= Math.sin(cameraAzimuth) * speed;
                 playerModel.position.z -= Math.cos(cameraAzimuth) * speed;
-                playerModel.rotation.y = cameraAzimuth;
+                targetRotation = cameraAzimuth + Math.PI; // Look away from camera
+                moved = true;
             }
             if (move.b) {
                 playerModel.position.x += Math.sin(cameraAzimuth) * speed;
                 playerModel.position.z += Math.cos(cameraAzimuth) * speed;
+                targetRotation = cameraAzimuth; // Look at camera
+                moved = true;
             }
-            // Side movement
             if (move.l) {
                 playerModel.position.x -= Math.cos(cameraAzimuth) * speed;
                 playerModel.position.z += Math.sin(cameraAzimuth) * speed;
+                targetRotation = cameraAzimuth - Math.PI/2;
+                moved = true;
             }
             if (move.r) {
                 playerModel.position.x += Math.cos(cameraAzimuth) * speed;
                 playerModel.position.z -= Math.sin(cameraAzimuth) * speed;
+                targetRotation = cameraAzimuth + Math.PI/2;
+                moved = true;
             }
 
-            // Camera positioning (Spherical coordinates)
+            if(moved) playerModel.rotation.y = targetRotation;
+
+            // Camera follow
             camera.position.x = playerModel.position.x + cameraDistance * Math.sin(cameraAzimuth) * Math.cos(cameraPolar);
             camera.position.y = playerModel.position.y + cameraDistance * Math.sin(cameraPolar);
             camera.position.z = playerModel.position.z + cameraDistance * Math.cos(cameraAzimuth) * Math.cos(cameraPolar);
-            camera.lookAt(playerModel.position.x, playerModel.position.y + 2, playerModel.position.z);
+            camera.lookAt(playerModel.position.x, playerModel.position.y + 1.5, playerModel.position.z);
         }
 
         renderer.render(scene, camera);

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Pocket World: Powers & Multiplayer</title>
+    <title>The Game: Pocket World - Definitive Edition</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Consolas', monospace; background: #000; color: #00ffff; }
         #menu {
@@ -16,7 +16,10 @@
             color: #00ffff; cursor: pointer; font-size: 16px; text-transform: uppercase; transition: 0.2s;
         }
         .btn:hover { background: #00ffff; color: black; box-shadow: 0 0 20px #00ffff; }
-        #network-panel { margin-top: 20px; padding: 20px; border: 1px solid #333; text-align: center; }
+        .mode-btn { border-color: #ff00ff; color: #ff00ff; margin-top: 10px; width: 100%; }
+        .mode-btn:hover { background: #ff00ff; color: #000; box-shadow: 0 0 20px #ff00ff; }
+        
+        #network-panel { margin-top: 20px; padding: 15px; border: 1px dashed #555; text-align: center; }
         input { background: #111; border: 1px solid #00ffff; color: #00ffff; padding: 10px; margin: 5px; outline: none; }
         
         #gui {
@@ -24,35 +27,40 @@
             background: rgba(0, 0, 0, 0.8); padding: 15px; border: 1px solid #00ff00;
             pointer-events: none; visibility: hidden; z-index: 50;
         }
+        #peer-id-display { color: yellow; margin-top: 10px; font-size: 14px; }
     </style>
 </head>
 <body>
 
 <div id="menu">
-    <h1>POCKET WORLD ONLINE</h1>
+    <h1>POCKET WORLD</h1>
     <div class="btn-list">
         <button class="btn" onclick="selectChar('ANTETON')">Anteton</button>
         <button class="btn" onclick="selectChar('CLASSIC')">Classic</button>
         <button class="btn" onclick="selectChar('GLITCH')">Glitch</button>
         <button class="btn" onclick="selectChar('TV')">TV Anteton</button>
     </div>
-    <div id="selected-label" style="margin-bottom: 10px;">Selected: None</div>
+    <div id="selected-label">Selected: None</div>
 
-    <div id="network-panel">
-        <button class="btn" onclick="hostGame()">Host Server</button>
-        <p>— OR —</p>
-        <input type="text" id="joinId" placeholder="Host ID">
-        <button class="btn" onclick="joinGame()">Join</button>
-        <div id="peer-id-display" style="margin-top: 15px; color: yellow;"></div>
+    <div style="width: 340px;">
+        <button class="btn mode-btn" onclick="startSingleplayer()">Play Singleplayer</button>
+        
+        <div id="network-panel">
+            <button class="btn" style="font-size: 12px;" onclick="hostGame()">Host Online</button>
+            <div style="margin: 5px 0; font-size: 12px;">— OR —</div>
+            <input type="text" id="joinId" placeholder="Host ID" style="width: 120px;">
+            <button class="btn" style="font-size: 12px;" onclick="joinGame()">Join</button>
+            <div id="peer-id-display"></div>
+        </div>
     </div>
 </div>
 
 <div id="gui">
-    <div id="char-name" style="font-size: 18px; color: #fff;">HERO: ---</div>
-    <div id="status">STATUS: Connecting...</div>
+    <div id="char-name" style="font-size: 18px; color: #fff; margin-bottom: 5px;">HERO: ---</div>
+    <div id="game-status">MODE: Singleplayer</div>
     <hr style="border-color: #333;">
-    <div>LMB: Attack | Q & E: Skills</div>
-    <div>WASD: Move | SPACE: Jump</div>
+    <div style="font-size: 12px;">LMB: Attack | Q & E: Skills</div>
+    <div style="font-size: 12px;">WASD: Move | SPACE: Jump</div>
 </div>
 
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -77,51 +85,70 @@
     };
 
     let scene, camera, renderer, clock = new THREE.Clock();
-    let playerModel, mixer, actions = {}, currentAction;
+    let playerModel, mixer, actions = {}, currentActionName = "";
     let selectedType = null;
-    let peer, conn, isHost = false;
+    let peer, conn, isMultiplayer = false;
+    
+    // Physics & Movement
     let move = { f: false, b: false, l: false, r: false };
+    let velocityY = 0, isGrounded = true;
+    const gravity = -0.012, jumpPower = 0.25;
+
+    // Camera
     let cameraAzimuth = 0, cameraPolar = 0.8, isMouseDown = false;
 
+    // --- UI FUNCTIONS ---
     window.selectChar = (type) => {
         selectedType = type;
         document.getElementById('selected-label').innerText = "Selected: " + CHARS[type].name;
     };
 
+    window.startSingleplayer = () => {
+        if(!selectedType) return alert("Select a character!");
+        isMultiplayer = false;
+        initGame();
+    };
+
     window.hostGame = () => {
         if(!selectedType) return alert("Select a character!");
-        isHost = true;
+        isMultiplayer = true;
+        document.getElementById('peer-id-display').innerText = "Connecting to PeerJS...";
+        
         peer = new Peer();
         peer.on('open', (id) => {
-            document.getElementById('peer-id-display').innerText = "ROOM ID: " + id;
+            document.getElementById('peer-id-display').innerText = "ID: " + id;
+            document.getElementById('game-status').innerText = "MODE: Host";
             initGame();
         });
         peer.on('connection', (c) => {
             conn = c;
             setupConn();
         });
+        peer.on('error', (err) => alert("Network Error: " + err.type));
     };
 
     window.joinGame = () => {
         if(!selectedType) return alert("Select a character!");
         const id = document.getElementById('joinId').value;
+        if(!id) return alert("Enter Host ID!");
+        
+        isMultiplayer = true;
         peer = new Peer();
         peer.on('open', () => {
             conn = peer.connect(id);
             setupConn();
+            document.getElementById('game-status').innerText = "MODE: Client";
             initGame();
         });
     };
 
     function setupConn() {
-        conn.on('open', () => {
-            document.getElementById('status').innerText = "STATUS: Connected";
-        });
         conn.on('data', (data) => {
-            if(data.type === 'move') { /* Здесь будет логика отрисовки второго игрока */ }
+            // Future logic for remote player
         });
     }
 
+    // --- CORE GAME ---
     function initGame() {
         document.getElementById('menu').style.display = 'none';
         document.getElementById('gui').style.visibility = 'visible';
@@ -130,11 +157,12 @@
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87CEEB);
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        scene.add(new THREE.AmbientLight(0xffffff, 0.9));
         const sun = new THREE.DirectionalLight(0xffffff, 1);
         sun.position.set(10, 20, 10);
         scene.add(sun);
@@ -160,17 +188,22 @@
             });
             
             fadeTo('Idle');
+        }, undefined, () => {
+            // Fallback if file missing
+            const geo = new THREE.BoxGeometry(1, 2, 1);
+            const mat = new THREE.MeshStandardMaterial({color: 0x555555});
+            playerModel = new THREE.Mesh(geo, mat);
+            playerModel.position.y = 1;
+            scene.add(playerModel);
         });
     }
 
     function fadeTo(name) {
-        if (!actions[name]) return;
+        if (!actions[name] || currentActionName === name) return;
         const nextAction = actions[name];
-        if (currentAction === nextAction) return;
-        
-        if (currentAction) currentAction.fadeOut(0.2);
+        if (actions[currentActionName]) actions[currentActionName].fadeOut(0.2);
         nextAction.reset().fadeIn(0.2).play();
-        currentAction = nextAction;
+        currentActionName = name;
     }
 
     function playActionOnce(name) {
@@ -179,9 +212,13 @@
         action.reset().setLoop(THREE.LoopOnce).play();
         action.clampWhenFinished = true;
         
-        mixer.addEventListener('finished', (e) => {
-            if(e.action === action) fadeTo('Idle');
-        });
+        const onFinish = (e) => {
+            if(e.action === action) {
+                mixer.removeEventListener('finished', onFinish);
+                fadeTo('Idle');
+            }
+        };
+        mixer.addEventListener('finished', onFinish);
     }
 
     function setupInput() {
@@ -190,6 +227,7 @@
             if(e.code === 'KeyS') move.b = true;
             if(e.code === 'KeyA') move.l = true;
             if(e.code === 'KeyD') move.r = true;
+            if(e.code === 'Space' && isGrounded) { velocityY = jumpPower; isGrounded = false; playActionOnce('Jump'); }
             if(e.code === 'KeyQ') playActionOnce('Skill_Q');
             if(e.code === 'KeyE') playActionOnce('Skill_E');
         });
@@ -218,10 +256,10 @@
         if(mixer) mixer.update(delta);
 
         if(playerModel) {
-            const speed = 0.15;
-            let isMoving = move.f || move.b || move.l || move.r;
+            const speed = 0.18;
+            let moving = move.f || move.b || move.l || move.r;
 
-            if(isMoving) {
+            if(moving && isGrounded) {
                 fadeTo('Walk');
                 if(move.f) { 
                     playerModel.position.x -= Math.sin(cameraAzimuth)*speed; 
@@ -233,22 +271,51 @@
                     playerModel.position.z += Math.cos(cameraAzimuth)*speed; 
                     playerModel.rotation.y = cameraAzimuth;
                 }
-            } else {
-                if(currentAction === actions['Walk']) fadeTo('Idle');
+                if(move.l) {
+                    playerModel.position.x -= Math.cos(cameraAzimuth)*speed; 
+                    playerModel.position.z += Math.sin(cameraAzimuth)*speed;
+                    playerModel.rotation.y = cameraAzimuth - Math.PI/2;
+                }
+                if(move.r) {
+                    playerModel.position.x += Math.cos(cameraAzimuth)*speed; 
+                    playerModel.position.z -= Math.sin(cameraAzimuth)*speed;
+                    playerModel.rotation.y = cameraAzimuth + Math.PI/2;
+                }
+            } else if (isGrounded && currentActionName === 'Walk') {
+                fadeTo('Idle');
             }
 
-            // Sync Camera
-            camera.position.x = playerModel.position.x + 10 * Math.sin(cameraAzimuth) * Math.cos(cameraPolar);
-            camera.position.y = playerModel.position.y + 10 * Math.sin(cameraPolar) + 2;
-            camera.position.z = playerModel.position.z + 10 * Math.cos(cameraAzimuth) * Math.cos(cameraPolar);
-            camera.lookAt(playerModel.position.x, playerModel.position.y + 1.5, playerModel.position.z);
+            // Gravity
+            playerModel.position.y += velocityY;
+            if (playerModel.position.y > 0) {
+                velocityY += gravity;
+                isGrounded = false;
+            } else {
+                playerModel.position.y = 0;
+                velocityY = 0;
+                isGrounded = true;
+            }
 
-            if(conn && isMoving) {
-                conn.send({ type: 'move', x: playerModel.position.x, z: playerModel.position.z, ry: playerModel.rotation.y });
+            // Camera Sync
+            const dist = 10;
+            camera.position.x = playerModel.position.x + dist * Math.sin(cameraAzimuth) * Math.cos(cameraPolar);
+            camera.position.y = playerModel.position.y + dist * Math.sin(cameraPolar) + 2;
+            camera.position.z = playerModel.position.z + dist * Math.cos(cameraAzimuth) * Math.cos(cameraPolar);
+            camera.lookAt(playerModel.position.x, playerModel.position.y + 1.5, playerModel.position.z);
+            
+            // Network Sync
+            if(isMultiplayer && conn && moving) {
+                conn.send({ type: 'move', x: playerModel.position.x, z: playerModel.position.z, ry: playerModel.rotation.y, anim: currentActionName });
             }
         }
         renderer.render(scene, camera);
     }
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
 </script>
 </body>
 </html>

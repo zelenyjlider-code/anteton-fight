@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>The Game: Pocket World - Definitive Edition</title>
+    <title>Pocket World: Custom Rooms</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Consolas', monospace; background: #000; color: #00ffff; }
         #menu {
@@ -16,18 +16,14 @@
             color: #00ffff; cursor: pointer; font-size: 16px; text-transform: uppercase; transition: 0.2s;
         }
         .btn:hover { background: #00ffff; color: black; box-shadow: 0 0 20px #00ffff; }
-        .mode-btn { border-color: #ff00ff; color: #ff00ff; margin-top: 10px; width: 100%; }
-        .mode-btn:hover { background: #ff00ff; color: #000; box-shadow: 0 0 20px #ff00ff; }
-        
         #network-panel { margin-top: 20px; padding: 15px; border: 1px dashed #555; text-align: center; }
-        input { background: #111; border: 1px solid #00ffff; color: #00ffff; padding: 10px; margin: 5px; outline: none; }
-        
+        input { background: #111; border: 1px solid #00ffff; color: #00ffff; padding: 10px; margin: 5px; outline: none; text-align: center; }
         #gui {
             position: absolute; top: 20px; left: 20px; 
             background: rgba(0, 0, 0, 0.8); padding: 15px; border: 1px solid #00ff00;
             pointer-events: none; visibility: hidden; z-index: 50;
         }
-        #peer-id-display { color: yellow; margin-top: 10px; font-size: 14px; }
+        #peer-id-display { color: yellow; font-size: 14px; margin-top: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -43,24 +39,25 @@
     <div id="selected-label">Selected: None</div>
 
     <div style="width: 340px;">
-        <button class="btn mode-btn" onclick="startSingleplayer()">Play Singleplayer</button>
+        <button class="btn" style="width:100%; border-color:#ff00ff; color:#ff00ff;" onclick="startSingle()">Play Singleplayer</button>
         
         <div id="network-panel">
-            <button class="btn" style="font-size: 12px;" onclick="hostGame()">Host Online</button>
-            <div style="margin: 5px 0; font-size: 12px;">— OR —</div>
-            <input type="text" id="joinId" placeholder="Host ID" style="width: 120px;">
-            <button class="btn" style="font-size: 12px;" onclick="joinGame()">Join</button>
+            <input type="text" id="roomId" placeholder="Room Name (e.g. TV123)" style="width: 80%;">
+            <div style="display: flex; gap: 5px; justify-content: center;">
+                <button class="btn" style="font-size: 11px; padding: 10px;" onclick="hostGame()">Host Room</button>
+                <button class="btn" style="font-size: 11px; padding: 10px;" onclick="joinGame()">Join Room</button>
+            </div>
             <div id="peer-id-display"></div>
         </div>
     </div>
 </div>
 
 <div id="gui">
-    <div id="char-name" style="font-size: 18px; color: #fff; margin-bottom: 5px;">HERO: ---</div>
-    <div id="game-status">MODE: Singleplayer</div>
-    <hr style="border-color: #333;">
-    <div style="font-size: 12px;">LMB: Attack | Q & E: Skills</div>
-    <div style="font-size: 12px;">WASD: Move | SPACE: Jump</div>
+    <div id="char-name">HERO: ---</div>
+    <div id="status">MODE: Singleplayer</div>
+    <hr>
+    <div>LMB: Attack | Q & E: Skills</div>
+    <div>WASD: Move | SPACE: Jump</div>
 </div>
 
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -85,70 +82,65 @@
     };
 
     let scene, camera, renderer, clock = new THREE.Clock();
-    let playerModel, mixer, actions = {}, currentActionName = "";
-    let selectedType = null;
-    let peer, conn, isMultiplayer = false;
-    
-    // Physics & Movement
+    let playerModel, mixer, actions = {}, currentActionName = "Idle";
+    let remotePlayer, remoteMixer, remoteActions = {};
+    let selectedType = null, peer, conn;
     let move = { f: false, b: false, l: false, r: false };
     let velocityY = 0, isGrounded = true;
-    const gravity = -0.012, jumpPower = 0.25;
-
-    // Camera
     let cameraAzimuth = 0, cameraPolar = 0.8, isMouseDown = false;
 
-    // --- UI FUNCTIONS ---
-    window.selectChar = (type) => {
-        selectedType = type;
-        document.getElementById('selected-label').innerText = "Selected: " + CHARS[type].name;
+    window.selectChar = (t) => { 
+        selectedType = t; 
+        document.getElementById('selected-label').innerText = "Selected: " + CHARS[t].name; 
     };
 
-    window.startSingleplayer = () => {
-        if(!selectedType) return alert("Select a character!");
-        isMultiplayer = false;
-        initGame();
-    };
+    window.startSingle = () => { if(!selectedType) return alert("Select hero!"); initGame(); };
 
     window.hostGame = () => {
-        if(!selectedType) return alert("Select a character!");
-        isMultiplayer = true;
-        document.getElementById('peer-id-display').innerText = "Connecting to PeerJS...";
+        if(!selectedType) return alert("Select hero!");
+        const customId = document.getElementById('roomId').value;
+        // Если ID введен, пробуем создать комнату с ним
+        peer = customId ? new Peer(customId) : new Peer();
         
-        peer = new Peer();
-        peer.on('open', (id) => {
-            document.getElementById('peer-id-display').innerText = "ID: " + id;
-            document.getElementById('game-status').innerText = "MODE: Host";
-            initGame();
+        peer.on('open', id => { 
+            document.getElementById('peer-id-display').innerText = "ROOM CREATED: " + id; 
+            document.getElementById('status').innerText = "MODE: Host";
+            initGame(); 
         });
-        peer.on('connection', (c) => {
-            conn = c;
-            setupConn();
+        peer.on('connection', c => { conn = c; setupConn(); });
+        peer.on('error', err => {
+            if(err.type === 'unavailable-id') alert("Room name already taken! Try another.");
+            else alert("Connection error: " + err.type);
         });
-        peer.on('error', (err) => alert("Network Error: " + err.type));
     };
 
     window.joinGame = () => {
-        if(!selectedType) return alert("Select a character!");
-        const id = document.getElementById('joinId').value;
-        if(!id) return alert("Enter Host ID!");
+        const id = document.getElementById('roomId').value;
+        if(!id) return alert("Enter Room Name to join!");
+        if(!selectedType) return alert("Select hero!");
         
-        isMultiplayer = true;
         peer = new Peer();
         peer.on('open', () => {
             conn = peer.connect(id);
             setupConn();
-            document.getElementById('game-status').innerText = "MODE: Client";
+            document.getElementById('status').innerText = "MODE: Client (" + id + ")";
             initGame();
         });
     };
 
     function setupConn() {
-        conn.on('data', (data) => {
-            // Future logic for remote player
+        conn.on('open', () => conn.send({ type: 'init', char: selectedType }));
+        conn.on('data', data => {
+            if(data.type === 'init') spawnRemote(data.char);
+            if(data.type === 'sync' && remotePlayer) {
+                remotePlayer.position.set(data.x, data.y, data.z);
+                remotePlayer.rotation.y = data.ry;
+                playRemoteAnim(data.anim);
+            }
+            if(data.type === 'action') playRemoteAnim(data.action, true);
         });
     }
 
-    // --- CORE GAME ---
     function initGame() {
         document.getElementById('menu').style.display = 'none';
         document.getElementById('gui').style.visibility = 'visible';
@@ -156,93 +148,103 @@
 
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87CEEB);
-        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        
-        renderer = new THREE.WebGLRenderer({ antialias: true });
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({antialias: true});
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-        const sun = new THREE.DirectionalLight(0xffffff, 1);
-        sun.position.set(10, 20, 10);
+        scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+        const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+        sun.position.set(5, 10, 7);
         scene.add(sun);
 
-        const grass = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshStandardMaterial({ color: 0x228B22 }));
-        grass.rotation.x = -Math.PI / 2;
+        const grass = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({color: 0x228B22}));
+        grass.rotation.x = -Math.PI/2;
         scene.add(grass);
 
-        loadPlayer();
-        setupInput();
+        loadLocalModel(CHARS[selectedType].file);
+        setupControls();
         animate();
     }
 
-    function loadPlayer() {
-        const loader = new GLTFLoader();
-        loader.load(CHARS[selectedType].file, (gltf) => {
+    function loadLocalModel(file) {
+        new GLTFLoader().load(file, gltf => {
             playerModel = gltf.scene;
             scene.add(playerModel);
-            
             mixer = new THREE.AnimationMixer(playerModel);
-            gltf.animations.forEach(clip => {
-                actions[clip.name] = mixer.clipAction(clip);
-            });
-            
-            fadeTo('Idle');
-        }, undefined, () => {
-            // Fallback if file missing
-            const geo = new THREE.BoxGeometry(1, 2, 1);
-            const mat = new THREE.MeshStandardMaterial({color: 0x555555});
-            playerModel = new THREE.Mesh(geo, mat);
-            playerModel.position.y = 1;
-            scene.add(playerModel);
+            gltf.animations.forEach(clip => actions[clip.name] = mixer.clipAction(clip));
+            if(actions['Idle']) actions['Idle'].play();
         });
     }
 
-    function fadeTo(name) {
-        if (!actions[name] || currentActionName === name) return;
-        const nextAction = actions[name];
-        if (actions[currentActionName]) actions[currentActionName].fadeOut(0.2);
-        nextAction.reset().fadeIn(0.2).play();
+    function spawnRemote(charType) {
+        new GLTFLoader().load(CHARS[charType].file, gltf => {
+            remotePlayer = gltf.scene;
+            scene.add(remotePlayer);
+            remoteMixer = new THREE.AnimationMixer(remotePlayer);
+            gltf.animations.forEach(clip => remoteActions[clip.name] = remoteMixer.clipAction(clip));
+            if(remoteActions['Idle']) remoteActions['Idle'].play();
+        });
+    }
+
+    function playAnim(name) {
+        if(!actions[name] || currentActionName === name) return;
+        if(actions[currentActionName]) actions[currentActionName].fadeOut(0.2);
+        actions[name].reset().fadeIn(0.2).play();
         currentActionName = name;
     }
 
     function playActionOnce(name) {
-        if (!actions[name]) return;
+        if(!actions[name]) return;
         const action = actions[name];
-        action.reset().setLoop(THREE.LoopOnce).play();
-        action.clampWhenFinished = true;
         
+        if(actions[currentActionName]) actions[currentActionName].stop();
+
+        action.reset();
+        action.setLoop(THREE.LoopOnce);
+        action.clampWhenFinished = false; 
+        action.play();
+
         const onFinish = (e) => {
             if(e.action === action) {
                 mixer.removeEventListener('finished', onFinish);
-                fadeTo('Idle');
+                action.stop(); // ГАРАНТИЯ ИСЧЕЗНОВЕНИЯ СТАТИКИ
+                playAnim('Idle');
             }
         };
         mixer.addEventListener('finished', onFinish);
+        if(conn) conn.send({ type: 'action', action: name });
     }
 
-    function setupInput() {
-        window.addEventListener('keydown', (e) => {
+    function playRemoteAnim(name, once = false) {
+        if(!remoteActions[name]) return;
+        if(once) remoteActions[name].reset().setLoop(THREE.LoopOnce).play();
+        else {
+            if(remoteActions[name].isRunning()) return;
+            Object.values(remoteActions).forEach(a => a.stop());
+            remoteActions[name].reset().play();
+        }
+    }
+
+    function setupControls() {
+        window.addEventListener('keydown', e => {
             if(e.code === 'KeyW') move.f = true;
             if(e.code === 'KeyS') move.b = true;
             if(e.code === 'KeyA') move.l = true;
             if(e.code === 'KeyD') move.r = true;
-            if(e.code === 'Space' && isGrounded) { velocityY = jumpPower; isGrounded = false; playActionOnce('Jump'); }
+            if(e.code === 'Space' && isGrounded) { velocityY = 0.25; isGrounded = false; playActionOnce('Jump'); }
             if(e.code === 'KeyQ') playActionOnce('Skill_Q');
             if(e.code === 'KeyE') playActionOnce('Skill_E');
         });
-        window.addEventListener('keyup', (e) => {
+        window.addEventListener('keyup', e => {
             if(e.code === 'KeyW') move.f = false;
             if(e.code === 'KeyS') move.b = false;
             if(e.code === 'KeyA') move.l = false;
             if(e.code === 'KeyD') move.r = false;
         });
-        window.addEventListener('mousedown', (e) => {
-            if(e.button === 0) playActionOnce('Attack');
-            isMouseDown = true;
-        });
+        window.addEventListener('mousedown', e => { if(e.button === 0) playActionOnce('Attack'); isMouseDown = true; });
         window.addEventListener('mouseup', () => isMouseDown = false);
-        window.addEventListener('mousemove', (e) => {
+        window.addEventListener('mousemove', e => {
             if(isMouseDown) {
                 cameraAzimuth -= e.movementX * 0.01;
                 cameraPolar = Math.max(0.1, Math.min(Math.PI/2.1, cameraPolar + e.movementY * 0.01));
@@ -254,68 +256,37 @@
         requestAnimationFrame(animate);
         const delta = clock.getDelta();
         if(mixer) mixer.update(delta);
+        if(remoteMixer) remoteMixer.update(delta);
 
         if(playerModel) {
             const speed = 0.18;
-            let moving = move.f || move.b || move.l || move.r;
-
-            if(moving && isGrounded) {
-                fadeTo('Walk');
-                if(move.f) { 
-                    playerModel.position.x -= Math.sin(cameraAzimuth)*speed; 
-                    playerModel.position.z -= Math.cos(cameraAzimuth)*speed; 
-                    playerModel.rotation.y = cameraAzimuth + Math.PI; 
-                }
-                if(move.b) {
-                    playerModel.position.x += Math.sin(cameraAzimuth)*speed; 
-                    playerModel.position.z += Math.cos(cameraAzimuth)*speed; 
-                    playerModel.rotation.y = cameraAzimuth;
-                }
-                if(move.l) {
-                    playerModel.position.x -= Math.cos(cameraAzimuth)*speed; 
-                    playerModel.position.z += Math.sin(cameraAzimuth)*speed;
-                    playerModel.rotation.y = cameraAzimuth - Math.PI/2;
-                }
-                if(move.r) {
-                    playerModel.position.x += Math.cos(cameraAzimuth)*speed; 
-                    playerModel.position.z -= Math.sin(cameraAzimuth)*speed;
-                    playerModel.rotation.y = cameraAzimuth + Math.PI/2;
-                }
-            } else if (isGrounded && currentActionName === 'Walk') {
-                fadeTo('Idle');
-            }
-
-            // Gravity
-            playerModel.position.y += velocityY;
-            if (playerModel.position.y > 0) {
-                velocityY += gravity;
-                isGrounded = false;
-            } else {
-                playerModel.position.y = 0;
-                velocityY = 0;
-                isGrounded = true;
-            }
-
-            // Camera Sync
-            const dist = 10;
-            camera.position.x = playerModel.position.x + dist * Math.sin(cameraAzimuth) * Math.cos(cameraPolar);
-            camera.position.y = playerModel.position.y + dist * Math.sin(cameraPolar) + 2;
-            camera.position.z = playerModel.position.z + dist * Math.cos(cameraAzimuth) * Math.cos(cameraPolar);
-            camera.lookAt(playerModel.position.x, playerModel.position.y + 1.5, playerModel.position.z);
+            let isMoving = move.f || move.b || move.l || move.r;
             
-            // Network Sync
-            if(isMultiplayer && conn && moving) {
-                conn.send({ type: 'move', x: playerModel.position.x, z: playerModel.position.z, ry: playerModel.rotation.y, anim: currentActionName });
+            if(isMoving && isGrounded) {
+                playAnim('Walk');
+                if(move.f) { playerModel.position.x -= Math.sin(cameraAzimuth)*speed; playerModel.position.z -= Math.cos(cameraAzimuth)*speed; playerModel.rotation.y = cameraAzimuth + Math.PI; }
+                if(move.b) { playerModel.position.x += Math.sin(cameraAzimuth)*speed; playerModel.position.z += Math.cos(cameraAzimuth)*speed; playerModel.rotation.y = cameraAzimuth; }
+                if(move.l) { playerModel.position.x -= Math.cos(cameraAzimuth)*speed; playerModel.position.z += Math.sin(cameraAzimuth)*speed; playerModel.rotation.y = cameraAzimuth - Math.PI/2; }
+                if(move.r) { playerModel.position.x += Math.cos(cameraAzimuth)*speed; playerModel.position.z -= Math.sin(cameraAzimuth)*speed; playerModel.rotation.y = cameraAzimuth + Math.PI/2; }
+            } else if(isGrounded && !mixer.existingAction(actions['Skill_E'])?.isRunning() && !mixer.existingAction(actions['Attack'])?.isRunning()) {
+                playAnim('Idle');
+            }
+
+            playerModel.position.y += velocityY;
+            if(playerModel.position.y > 0) { velocityY -= 0.012; isGrounded = false; }
+            else { playerModel.position.y = 0; velocityY = 0; isGrounded = true; }
+
+            camera.position.x = playerModel.position.x + 10 * Math.sin(cameraAzimuth) * Math.cos(cameraPolar);
+            camera.position.y = playerModel.position.y + 10 * Math.sin(cameraPolar) + 2;
+            camera.position.z = playerModel.position.z + 10 * Math.cos(cameraAzimuth) * Math.cos(cameraPolar);
+            camera.lookAt(playerModel.position.x, playerModel.position.y + 1.5, playerModel.position.z);
+
+            if(conn) {
+                conn.send({ type: 'sync', x: playerModel.position.x, y: playerModel.position.y, z: playerModel.position.z, ry: playerModel.rotation.y, anim: currentActionName });
             }
         }
         renderer.render(scene, camera);
     }
-
-    window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    });
 </script>
 </body>
 </html>

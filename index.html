@@ -6,7 +6,7 @@
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Consolas', monospace; background: #000; }
         
-        /* Меню выбора */
+        /* РњРµРЅСЋ РІС‹Р±РѕСЂР° */
         #menu {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: radial-gradient(circle, #1a1a1a, #000);
@@ -20,14 +20,14 @@
         }
         .btn:hover { background: #00ffff; color: black; box-shadow: 0 0 30px #00ffff; }
 
-        /* Интерфейс игры */
+        /* РРЅС‚РµСЂС„РµР№СЃ РёРіСЂС‹ */
         #gui {
             position: absolute; top: 20px; left: 20px; color: #00ff00;
             background: rgba(0, 30, 0, 0.8); padding: 15px; border: 1px solid #00ff00;
             pointer-events: none; visibility: hidden; z-index: 50;
         }
 
-        /* Оверлей паузы */
+        /* РћРІРµСЂР»РµР№ РїР°СѓР·С‹ */
         #pause-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 255, 255, 0.1); display: none;
@@ -41,24 +41,24 @@
 <body>
 
 <div id="menu">
-    <h1 style="color: white; margin-bottom: 40px; filter: drop-shadow(0 0 10px cyan);">choose character</h1>
+    <h1 style="color: white; margin-bottom: 40px; filter: drop-shadow(0 0 10px cyan);">Р’Р«Р‘Р•Р Р РџР•Р РЎРћРќРђР–Рђ</h1>
     <div class="btn-list">
-        <button class="btn" onclick="startGame('ANTETON')">ANTETON</button>
-        <button class="btn" onclick="startGame('CLASSIC')">CLASSIC</button>
-        <button class="btn" onclick="startGame('GLITCH')">GLITCH</button>
-        <button class="btn" onclick="startGame('TV')">TV ANTETON</button>
+        <button class="btn" onclick="startGame('ANTETON')">РђРЅС‚РµС‚РѕРЅ</button>
+        <button class="btn" onclick="startGame('CLASSIC')">РљР»Р°СЃСЃРёРє</button>
+        <button class="btn" onclick="startGame('GLITCH')">Р“Р»РёС‡</button>
+        <button class="btn" onclick="startGame('TV')">РўР’ РђРЅС‚РµС‚РѕРЅ</button>
     </div>
 </div>
 
 <div id="gui">
-    <div id="char-name" style="font-size: 20px; font-weight: bold;">ГЕРОЙ: ---</div>
+    <div id="char-name" style="font-size: 20px; font-weight: bold;">Р“Р•Р РћР™: ---</div>
     <hr style="border: 0; border-top: 1px solid #00ff00;">
-    <div>W,A,S,D - Ходьба</div>
-    <div>P - THE GAME ПАУЗА</div>
+    <div>W,A,S,D - РҐРѕРґСЊР±Р°</div>
+    <div>P - THE GAME РџРђРЈР—Рђ</div>
 </div>
 
 <div id="pause-overlay">
-    <div class="glitch-text">THE GAME: ПАУЗА</div>
+    <div class="glitch-text">THE GAME: РџРђРЈР—Рђ</div>
 </div>
 
 <script type="importmap">
@@ -74,11 +74,12 @@
     import * as THREE from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+    // --- РќРђРЎРўР РћР™РљР Р¤РђР™Р›РћР’ РЎ Р РЈРЎРЎРљРРњР РќРђР—Р’РђРќРРЇРњР ---
     const CHARS = {
-        ANTETON: { file: 'anteton.gltf', name: 'Антетон' },
-        CLASSIC: { file: 'classic.gltf', name: 'Классик' },
-        GLITCH: { file: 'glitch.gltf', name: 'Глич' },
-        TV: { file: 'tv_anteton.gltf', name: 'ТВ Антетон' }
+        ANTETON: { file: 'Р°РЅС‚РµС‚РѕРЅ.gltf', name: 'РђРЅС‚РµС‚РѕРЅ' },
+        CLASSIC: { file: 'РєР»Р°СЃСЃРёРє.gltf', name: 'РљР»Р°СЃСЃРёРє' },
+        GLITCH: { file: 'РіР»РёС‡.gltf', name: 'Р“Р»РёС‡' },
+        TV: { file: 'С‚РІ Р°РЅС‚РµС‚РѕРЅ.gltf', name: 'РўР’ РђРЅС‚РµС‚РѕРЅ' }
     };
 
     let scene, camera, renderer, playerModel;
@@ -86,18 +87,18 @@
     let move = { f: false, b: false, l: false, r: false };
     const loader = new GLTFLoader();
 
-    // Запуск игры после выбора
+    // Р—Р°РїСѓСЃРє РёРіСЂС‹
     window.startGame = (type) => {
         document.getElementById('menu').style.display = 'none';
         document.getElementById('gui').style.visibility = 'visible';
-        document.getElementById('char-name').innerText = "ГЕРОЙ: " + CHARS[type].name;
+        document.getElementById('char-name').innerText = "Р“Р•Р РћР™: " + CHARS[type].name;
         
-        setupCharacters(type);
+        setupWorld(type);
     };
 
     function init() {
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87CEEB); // Небо из книги
+        scene.background = new THREE.Color(0x87CEEB); 
 
         camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         
@@ -105,13 +106,12 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Свет
-        const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.8);
         const sun = new THREE.DirectionalLight(0xffffff, 1);
         sun.position.set(10, 20, 10);
         scene.add(ambient, sun);
 
-        // Трава (Карманный мир)
+        // РџРѕР»Рµ (РўСЂР°РІР°)
         const grass = new THREE.Mesh(
             new THREE.PlaneGeometry(100, 100),
             new THREE.MeshStandardMaterial({ color: 0x228B22 })
@@ -119,18 +119,17 @@
         grass.rotation.x = -Math.PI / 2;
         scene.add(grass);
 
-        // Два квадратных желтых дома
-        createHouse(-12, 0, "ЖИЛОЙ");
-        createHouse(12, 0, "КАФЕТЕРИЙ");
+        // Р–РµР»С‚С‹Рµ РґРѕРјР°
+        createHouse(-12, 0); 
+        createHouse(12, 0); 
 
-        // Управление
         window.addEventListener('keydown', (e) => handleInput(e.code, true));
         window.addEventListener('keyup', (e) => handleInput(e.code, false));
 
         animate();
     }
 
-    function createHouse(x, z, label) {
+    function createHouse(x, z) {
         const house = new THREE.Mesh(
             new THREE.BoxGeometry(7, 6, 7),
             new THREE.MeshStandardMaterial({ color: 0xFFFF00 })
@@ -139,32 +138,28 @@
         scene.add(house);
     }
 
-    function setupCharacters(selectedType) {
+    function setupWorld(selectedType) {
         Object.keys(CHARS).forEach((key, index) => {
-            loader.load(CHARS[key].file, (gltf) => {
+            // РљРѕРґРёСЂСѓРµРј СЂСѓСЃСЃРєРёРµ Р±СѓРєРІС‹ Рё РїСЂРѕР±РµР»С‹ РґР»СЏ Р±СЂР°СѓР·РµСЂР°
+            const encodedPath = encodeURI(CHARS[key].file);
+            
+            loader.load(encodedPath, (gltf) => {
                 const model = gltf.scene;
-                
                 if (key === selectedType) {
                     playerModel = model;
                     playerModel.position.set(0, 0, 8);
                 } else {
-                    // Друзья стоят в стороне
-                    model.position.set((index - 1.5) * 4, 0, -5);
+                    model.position.set((index - 1.5) * 5, 0, -5);
                 }
                 scene.add(model);
-            }, undefined, () => {
-                // Заглушка, если модели еще не загружены на GitHub
-                const placeholder = new THREE.Mesh(
-                    new THREE.BoxGeometry(1, 2, 1),
-                    new THREE.MeshStandardMaterial({ color: key === 'GLITCH' ? 0x000000 : 0x800080 })
-                );
-                if (key === selectedType) {
-                    playerModel = placeholder;
-                    playerModel.position.set(0, 1, 8);
-                } else {
-                    placeholder.position.set((index - 1.5) * 4, 1, -5);
-                }
-                scene.add(placeholder);
+                console.log("Р—Р°РіСЂСѓР¶РµРЅ: " + CHARS[key].file);
+            }, undefined, (err) => {
+                console.warn("Р¤Р°Р№Р» РЅРµ РЅР°Р№РґРµРЅ: " + CHARS[key].file);
+                // Р—Р°РіР»СѓС€РєР°
+                const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({color: 0x800080}));
+                if (key === selectedType) { playerModel = cube; playerModel.position.set(0, 1, 8); }
+                else { cube.position.set((index - 1.5) * 5, 1, -5); }
+                scene.add(cube);
             });
         });
     }
@@ -180,28 +175,22 @@
     function togglePause() {
         isPaused = !isPaused;
         document.getElementById('pause-overlay').style.display = isPaused ? 'flex' : 'none';
-        scene.background = new THREE.Color(isPaused ? 0x113333 : 0x87CEEB);
+        scene.background = new THREE.Color(isPaused ? 0x112222 : 0x87CEEB);
     }
 
     function animate() {
         requestAnimationFrame(animate);
 
         if (playerModel && !isPaused) {
-            const speed = 0.12;
+            const speed = 0.15;
             if (move.f) playerModel.position.z -= speed;
             if (move.b) playerModel.position.z += speed;
             if (move.l) playerModel.position.x -= speed;
             if (move.r) playerModel.position.x += speed;
 
-            // Камера за плечом
-            camera.position.set(
-                playerModel.position.x, 
-                playerModel.position.y + 4, 
-                playerModel.position.z + 8
-            );
+            camera.position.set(playerModel.position.x, playerModel.position.y + 4, playerModel.position.z + 8);
             camera.lookAt(playerModel.position);
         }
-
         renderer.render(scene, camera);
     }
 
